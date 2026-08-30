@@ -45,7 +45,7 @@ impl LoadedLocal {
     }
 }
 
-const MAX_VALIDATION_ATTEMPTS: usize = 2;
+const MAX_VALIDATION_ATTEMPTS: usize = 3;
 
 impl Translator {
     pub fn from_config(
@@ -140,16 +140,30 @@ impl Translator {
         } else {
             request.remove_image();
         }
-        let expected = request.segments.len();
 
         let validator = request.validator.clone();
         let mut feedback: Option<String> = None;
+        let mut retry_indices: Option<Vec<usize>> = None;
+        let mut translated: Option<Vec<String>> = None;
         for attempt in 0..MAX_VALIDATION_ATTEMPTS {
-            let attempt_request = feedback
-                .as_ref()
-                .map(|feedback| request.clone().with_retry_feedback(feedback.clone()))
-                .unwrap_or_else(|| request.clone());
-            let translated = if provider == Provider::Local {
+            let attempt_request = match retry_indices.as_deref() {
+                Some(indices) => {
+                    let mut retry = request.clone();
+                    retry.segments = indices
+                        .iter()
+                        .map(|&index| request.segments[index].clone())
+                        .collect();
+                    retry.with_retry_feedback(
+                        feedback
+                            .as_ref()
+                            .expect("validation retry requires corrective feedback")
+                            .clone(),
+                    )
+                }
+                None => request.clone(),
+            };
+            let attempt_expected = attempt_request.segments.len();
+            let attempt_translated = if provider == Provider::Local {
                 self.local(selection)
                     .await?
                     .translate(attempt_request, generation.clone())
@@ -165,29 +179,57 @@ impl Translator {
                 )
                 .await?
             };
-            if translated.len() != expected {
+            if attempt_translated.len() != attempt_expected {
                 return Err(Error::SegmentCount {
                     provider: provider_id,
-                    expected,
-                    actual: translated.len(),
+                    expected: attempt_expected,
+                    actual: attempt_translated.len(),
                 }
                 .into());
             }
+            if let Some(indices) = retry_indices.as_deref() {
+                merge_retry_translations(
+                    translated
+                        .as_mut()
+                        .expect("validation retry requires the initial translations"),
+                    indices,
+                    attempt_translated,
+                );
+            } else {
+                translated = Some(attempt_translated);
+            }
+
+            let current = translated
+                .as_ref()
+                .expect("every translation attempt produces output");
             let Some(validation_feedback) = validator
                 .as_ref()
-                .and_then(|validator| validator.feedback(&translated, request.target_language))
+                .and_then(|validator| validator.feedback(current, request.target_language))
             else {
                 tracing::Span::current().record("outcome", "completed");
-                return Ok((provider_id, translated));
+                return Ok((
+                    provider_id,
+                    translated.expect("validated translations are available"),
+                ));
             };
-            if attempt + 1 == MAX_VALIDATION_ATTEMPTS || !retries_with_feedback(provider) {
+            if !should_retry_validation(provider, attempt) {
                 return Err(Error::Validation {
                     provider: provider_id,
                     message: validation_feedback,
                 }
                 .into());
             }
-            feedback = Some(validation_feedback);
+
+            let validator = validator
+                .as_ref()
+                .expect("validation feedback requires a validator");
+            let invalid_indices = validator.invalid_indices(current);
+            let invalid_translations = invalid_indices
+                .iter()
+                .map(|&index| current[index].clone())
+                .collect::<Vec<_>>();
+            feedback = validator.feedback(&invalid_translations, request.target_language);
+            retry_indices = Some(invalid_indices);
         }
         unreachable!("validation attempts are bounded and always return")
     }
@@ -221,6 +263,21 @@ impl Translator {
                 .translator,
         ))
     }
+}
+
+fn merge_retry_translations(
+    translated: &mut [String],
+    indices: &[usize],
+    replacements: Vec<String>,
+) {
+    debug_assert_eq!(indices.len(), replacements.len());
+    for (&index, replacement) in indices.iter().zip(replacements) {
+        translated[index] = replacement;
+    }
+}
+
+fn should_retry_validation(provider: Provider, attempt: usize) -> bool {
+    attempt + 1 < MAX_VALIDATION_ATTEMPTS && retries_with_feedback(provider)
 }
 
 fn retries_with_feedback(provider: Provider) -> bool {
@@ -267,5 +324,33 @@ mod tests {
                 ..GenerationConfig::default()
             }
         ));
+    }
+
+    #[test]
+    fn targeted_retry_replaces_only_invalid_translations() {
+        let mut translated = vec![
+            "Первый перевод".to_owned(),
+            "Если я'll make him...".to_owned(),
+            "Третий перевод".to_owned(),
+        ];
+
+        merge_retry_translations(
+            &mut translated,
+            &[1],
+            vec!["Если я заставлю его...".to_owned()],
+        );
+
+        assert_eq!(
+            translated,
+            ["Первый перевод", "Если я заставлю его...", "Третий перевод"]
+        );
+    }
+
+    #[test]
+    fn validation_retries_are_bounded_and_provider_aware() {
+        assert!(should_retry_validation(Provider::OpenAiCompatible, 0));
+        assert!(should_retry_validation(Provider::OpenAiCompatible, 1));
+        assert!(!should_retry_validation(Provider::OpenAiCompatible, 2));
+        assert!(!should_retry_validation(Provider::DeepL, 0));
     }
 }

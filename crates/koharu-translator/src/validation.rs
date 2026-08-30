@@ -49,6 +49,19 @@ impl TranslationValidator {
         Ok(Self { rules })
     }
 
+    pub(crate) fn invalid_indices(&self, translations: &[String]) -> Vec<usize> {
+        translations
+            .iter()
+            .enumerate()
+            .filter_map(|(index, translation)| {
+                self.rules
+                    .iter()
+                    .any(|rule| rule.expression.is_match(translation))
+                    .then_some(index)
+            })
+            .collect()
+    }
+
     #[must_use]
     pub fn feedback(&self, translations: &[String], target_language: Language) -> Option<String> {
         let mut violations = None;
