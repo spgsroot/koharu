@@ -66,8 +66,26 @@ impl TranslationValidator {
             }
         }
         let violations = violations?;
+
+        let mut invalid_segments = String::new();
+        for (id, translation) in translations.iter().enumerate() {
+            if self
+                .rules
+                .iter()
+                .any(|rule| rule.expression.is_match(translation))
+            {
+                if !invalid_segments.is_empty() {
+                    invalid_segments.push('\n');
+                }
+                let translation =
+                    serde_json::to_string(translation).expect("serializing a String cannot fail");
+                write!(invalid_segments, "- segment {id}: {translation}")
+                    .expect("writing to a String cannot fail");
+            }
+        }
+
         Some(format!(
-            "Your previous response was invalid because one or more translated `text` fields matched forbidden validation rules:\n{violations}\n\nRegenerate the entire JSON response.\nTranslate every segment completely into {target_language}.\nNo listed forbidden pattern is allowed in any `text` field.",
+            "Your previous response was invalid because one or more translated `text` fields matched forbidden validation rules:\n{violations}\n\nInvalid translated fields:\n{invalid_segments}\n\nRegenerate the entire JSON response.\nTranslate every segment completely into {target_language}.\nNo listed forbidden pattern is allowed in any `text` field.",
         ))
     }
 }
@@ -91,6 +109,28 @@ mod tests {
         assert!(feedback.contains("Regenerate the entire JSON response"));
         assert!(feedback.contains("Translate every segment completely into Russian"));
         assert!(feedback.contains("- Latin-script letters (`[A-Za-z]`)"));
+    }
+
+    #[test]
+    fn corrective_feedback_identifies_only_invalid_translated_fields() {
+        let validator = TranslationValidator::new(&[TranslationValidationRule {
+            name: "Latin-script letters".to_owned(),
+            pattern: "[A-Za-z]".to_owned(),
+        }])
+        .unwrap();
+
+        let feedback = validator
+            .feedback(
+                &[
+                    "Чистый перевод".to_owned(),
+                    "Если я'll make him...".to_owned(),
+                ],
+                Language::Russian,
+            )
+            .unwrap();
+
+        assert!(feedback.contains(r#"- segment 1: "Если я'll make him...""#));
+        assert!(!feedback.contains("Чистый перевод"));
     }
 
     #[test]
