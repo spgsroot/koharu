@@ -1,6 +1,6 @@
 ---
 title: Canvas Basics
-description: Navigate the canvas and use selection, text, paint, erase, color, remove, and pan tools.
+description: Navigate the canvas and use selection, text, paint, erase, color, remove, decensor, and pan tools.
 ---
 
 # Canvas Basics
@@ -30,9 +30,9 @@ Use **Text** to create text presentation. A click creates point text, while a dr
 
 Use **Color picker** to sample the composited canvas. The chosen color can be applied to brush strokes or text styling without estimating the page color by eye.
 
-## Remove lettering
+## Manual cleanup
 
-Use **Remove** to paint a mask for a manual inpainting run. This mask is consumed by the next inpainting operation rather than becoming a visible paint layer. See [Cleanup and inpainting](/workflow/cleanup-and-inpainting/).
+**Fast** (`J`) runs the selected bubble LaMa/AOT model over a painted stroke. **Inpainting (FLUX)** (`P`) uses its independent manual repair prompt and settings; **Decensor** (`D`) uses its separate censorship-reconstruction profile. Releasing a stroke queues its mask while drawing remains available. Pending masks stay visible until their jobs finish, fail, or stop. Temporary masks do not become paint layers or alter automatic lettering masks. See [Cleanup and inpainting](/workflow/cleanup-and-inpainting/).
 
 ## Keyboard focus
 

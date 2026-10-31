@@ -32,7 +32,7 @@ bun dev
 bun run build
 ```
 
-The repository build script uses `tauri build --no-bundle`; the executable is written under `target/release`. Installer packaging is performed by the release workflow.
+The repository build script uses `tauri build --no-bundle`; the executable is written under `target/release`. Build a local Windows installer with `cargo tauri build --bundles nsis`; the installer is written under `target/release/bundle/nsis`.
 
 ## Focused checks
 

@@ -12,7 +12,7 @@ Koharu 用统一模型选择器呈现本地和托管翻译后端。一次模型�
 当前包括：
 
 - 通过 llama.cpp 运行 GGUF 的 **Local**
-- **Atlas Cloud**、**OpenAI**、**Gemini**、**Claude**、**DeepSeek**
+- **Atlas Cloud**、**OpenAI**、**Gemini**、**Claude**、**Cursor**、**DeepSeek**
 - **OpenRouter**
 - **LM Studio** 与通用 **OpenAI-compatible** 端点
 - **DeepL**、**Google Cloud Translation**、**Caiyun**

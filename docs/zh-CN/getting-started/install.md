@@ -1,23 +1,18 @@
 ---
 title: 安装 Koharu
-description: 安装发行版，完成首次启动并保持更新。
+description: 在本地构建并安装 Koharu。
 ---
 
 # 安装 Koharu
 
-除非你准备修改 Koharu 本身，否则请使用发行版。当前发行版面向 64 位 Windows、64 位 Linux 和 Apple 芯片 macOS。
-
-## 下载发行版
-
-打开[最新 GitHub Release](https://github.com/koharu-rs/koharu/releases/latest)，选择适合操作系统的安装程序或软件包。
-
-Windows 也可以使用 WinGet：
+此分支仅从源码在本地构建。先安装[开发环境](/zh-CN/development/setup/)中列出的依赖，然后运行：
 
 ```powershell
-winget install --id mayocream.koharu
+bun install
+cargo tauri build --bundles nsis
 ```
 
-Linux 可能需要 Tauri 应用常用的 WebKit 和桌面库。若有适配当前发行版的软件包，请优先使用它。
+Windows 安装程序会输出到 `target/release/bundle/nsis`。
 
 ## 首次启动
 
@@ -25,10 +20,4 @@ Linux 可能需要 Tauri 应用常用的 WebKit 和桌面库。若有适配当�
 
 下载需要访问 GitHub Release 资源；模型权重通常还需要访问 Hugging Face。进度显示在活动中心。软件包发布到本地缓存期间不要关闭应用。
 
-## 更新
-
-发行版包含更新器，会检查 Koharu 已签名的 GitHub 发布源。出现更新提示后，请等待下载完成再重启。
-
 下一步请[翻译第一个项目](/zh-CN/getting-started/first-project/)。硬件选择与缓存行为见[运行时、模型与硬件](/zh-CN/getting-started/runtime-models-and-hardware/)。
-
-如需从源码构建，请转到[开发环境](/zh-CN/development/setup/)。

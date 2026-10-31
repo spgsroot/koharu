@@ -16,11 +16,13 @@ description: 所有设置页面及其持久化行为的参考。
 
 ## 流水线
 
-选择检测、OCR 与图像修复模型。模型拥有的字段会随之显示，包括检测的文字/气泡/分格阈值，以及生成式修复的正负提示词。切换模型时，各处理器配置会独立保留。
+分别选择检测、OCR、气泡内文字修复、画面上文字修复与去审查模型。气泡使用 LaMa 或 AOT；均匀背景直接填充，不执行模型推理。画面上的文字、拟声词和独立字形默认使用 FLUX.2 Klein 9B。文字修复与去审查的提示词、采样设置和端点各自保存，即使选择同一模型也不共享。审查检测的启用、马赛克检测、阈值、遮罩膨胀与模糊仍属于审查检测阶段。
+
+气泡模型位于 `[pipeline.inpainting] bubbles`，画面修复模型位于 `[pipeline.inpainting.artwork] model`，模型配置位于 `[pipeline.inpainting.artwork.<model>]`；去审查配置仍位于 `[pipeline.decensor.<model>]`。旧的扁平修复配置不再读取。请重新选择气泡模型，只把文字清理配置恢复到新命名空间，不要复用去审查提示词。仅有旧合并蒙版的页面需要先重新执行整页检测。
 
 ## 服务商
 
-配置 Local、Atlas Cloud、OpenAI、Gemini、Claude、DeepSeek、OpenAI-compatible、OpenRouter、LM Studio、DeepL、Google Cloud Translation 与 Caiyun。
+配置 Local、Atlas Cloud、OpenAI、Gemini、Claude、Cursor、DeepSeek、OpenAI-compatible、OpenRouter、LM Studio、DeepL、Google Cloud Translation 与 Caiyun。
 
 凭据保存在操作系统凭据服务，URL 和非秘密选项保存在共享配置文件。服务设置变化后会刷新模型目录。
 
@@ -36,6 +38,6 @@ description: 所有设置页面及其持久化行为的参考。
 
 ## 快捷键
 
-为选择、文本、绘画、橡皮擦、取色器、移除、平移和适应窗口分配一个字符。当前快捷键编辑只更新正在运行的 UI 会话，不属于 `~/.koharu/config.toml`。
+为选择、文本、绘画、橡皮擦、取色器、移除、去审查、平移和适应窗口分配一个字符。当前快捷键编辑只更新正在运行的 UI 会话，不属于 `~/.koharu/config.toml`。
 
 流水线、服务商、翻译、排字与智能体配置分别使用 `~/.koharu/config.toml` 中的所有者区段。不要把凭据写入该文件。

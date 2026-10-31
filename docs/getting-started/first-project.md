@@ -36,7 +36,7 @@ The translation and inpainting branches both depend on detection, while translat
 
 Select a text layer and compare its source text with the translation in the inspector. Correct OCR or translation directly. Use undo if an edit is not useful.
 
-If the cleanup mask missed lettering, use the **Remove** tool. Use **Brush** or **Eraser** for authored raster corrections, and use **Text** to add a missing text box.
+If the cleanup mask missed lettering, use **Fast** for bubble cleanup or **Inpainting (FLUX)** for artwork repair with an independent prompt. Use **Brush** or **Eraser** for authored raster corrections, and use **Text** to add a missing text box.
 
 ## 6. Typeset
 

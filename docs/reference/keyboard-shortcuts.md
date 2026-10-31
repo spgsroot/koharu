@@ -16,7 +16,9 @@ Single-key tool shortcuts work when a project is open and a text input, textarea
 | Brush | `B` |
 | Eraser | `E` |
 | Color picker | `I` |
-| Remove | `J` |
+| Fast | `J` |
+| Inpainting (FLUX) | `P` |
+| Decensor | `D` |
 | Pan | `H` |
 | Fit Window | `0` |
 
@@ -37,11 +39,11 @@ Releasing Space restores the previously selected tool. Switching away from the a
 | Action | Windows/Linux | macOS |
 | --- | --- | --- |
 | Undo | `Ctrl+Z` | `Command+Z` |
-| Redo | `Ctrl+Shift+Z` | `Command+Shift+Z` |
+| Redo | `Ctrl+Shift+Z` or `Ctrl+Y` | `Command+Shift+Z` |
 | Select all editable layers on the page | `Ctrl+A` | `Command+A` |
 | Delete selected layers | `Delete` or `Backspace` | `Delete` or `Backspace` |
 
-The application intercepts these commands only when an editable text field is not focused.
+Undo and redo commit the focused text draft before navigating document history. Other editing shortcuts remain inactive while an editable text field is focused.
 
 ## Shortcut conflicts
 

@@ -3,10 +3,6 @@
 <p align="center">ML-powered manga translator, written in <b>Rust</b>.</p>
 
 <p align="center">
-<a href="https://github.com/koharu-rs/koharu/releases/latest" target="_blank"><img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/koharu-rs/koharu/total?style=for-the-badge&link=https%3A%2F%2Fgithub.com%2Fkoharu-rs%2Fkoharu%2Freleases%2Flatest"></a>
-</p>
-
-<p align="center">
 <a href="https://trendshift.io/repositories/20649" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20649" alt="koharu-rs%2Fkoharu | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
@@ -22,6 +18,15 @@ Koharu introduces a local-first workflow for manga translation, utilizing the po
 
 > [!NOTE]
 > Koharu runs its vision models and LLMs **locally** on your machine to keep your data private and secure.
+
+> [!IMPORTANT]
+> **This is a fork** of [koharu-rs/koharu](https://github.com/koharu-rs/koharu), based on upstream **0.79.4**, built for a production translation workflow. Report issues with fork features here, not upstream.
+>
+> It adds split bubble/artwork cleanup routes, more generative repair models, a History panel, translation content profiles and validators, a token-usage journal, an orders dashboard with a spreadsheet exchange for outside translators, and a loopback automation API for bots and scripts. See **[What this fork adds](docs/fork/index.md)** and the measured **[cleanup evidence](docs/fork/cleanup-evidence.md)** against upstream.
+>
+> The upstream auto-updater is removed; build installers locally as described below.
+
+![Fork editor](docs/assets/fork/editor.webp)
 
 ---
 
@@ -97,12 +102,18 @@ OCR reads source text from detected regions.
 
 #### Inpainting
 
-Inpainting reconstructs the image behind source text before the translation is rendered.
+Inpainting uses separate routes: fast LaMa/AOT cleanup inside speech bubbles and FLUX.2 Klein 4B by default for lettering and sound effects over artwork. Uniform bubble interiors are filled without loading a model. Artwork cleanup and decensoring keep independent prompts and settings; text removal never reconstructs censorship. After updating, rerun **Detection** on the whole page to create the split lettering masks. The measurements behind these defaults are in [Cleanup evidence](docs/fork/cleanup-evidence.md).
+
+The left toolbar has three manual brushes: **Fast** (`J`) uses the selected bubble LaMa/AOT model, **Inpainting (FLUX)** (`P`) uses an independent 9B repair prompt and settings, and **Decensor** (`D`) uses its own reconstruction profile. Selecting a brush exposes its model controls in the right-hand Properties panel. Released masks enter one FIFO queue, so drawing can continue while another mask is processed. Each accepted mask keeps its original settings and applies to the preceding job's committed result; the automatic bubble/artwork cleanup routes remain separate.
 
 - [FLUX.2 Klein](https://huggingface.co/unsloth/FLUX.2-klein-4B-GGUF)
 - [RORem mixed](https://huggingface.co/mayocream/RORem-mixed-GGUF)
 - [LaMa](https://huggingface.co/mayocream/lama-manga)
 - [AOT GAN](https://huggingface.co/mayocream/aot-inpainting)
+
+Planned generative backends, exact assets, runtime boundaries, and compatibility gates are documented in [Generative Inpainting Integrations](docs/development/generative-inpainting-integrations.md).
+
+**Censor detection** saves a separate mask for black bars, conservative white-stroke stacks and optional pixel mosaics; automatic **Decensor** uses that saved mask rather than detecting again. Inspect the red **Censor mask** overlay before reconstruction. Fine dotted screentones are filtered out, but isolated, thin or crossing white marks may still be missed. After updating the detector, rerun **Censor detection** on affected pages to replace old masks. See [Automatic censorship mask](docs/development/generative-inpainting-integrations.md#automatic-censorship-mask) for limitations.
 
 ### Large Language Models
 
@@ -138,25 +149,14 @@ OpenAI-compatible endpoints are also supported.
 
 ## Installation
 
-Download release builds from the [releases page](https://github.com/koharu-rs/koharu/releases/latest). [Installation requirements and first launch](https://koharu.rs/getting-started/install/) vary by operating system.
-
-Builds are available for Windows, macOS, and Linux.
-
-### WinGet
-
-Install on Windows with [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/):
+This fork is built and installed locally. Install the [development prerequisites](https://koharu.rs/development/setup/), install dependencies, and create a Windows installer:
 
 ```bash
-winget install koharu
+bun install
+cargo tauri build --bundles nsis
 ```
 
-### Homebrew
-
-Install on macOS with [Homebrew](https://brew.sh/):
-
-```bash
-brew install --cask koharu
-```
+The NSIS installer is written to `target/release/bundle/nsis`.
 
 ## Troubleshooting
 

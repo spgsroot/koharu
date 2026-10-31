@@ -35,9 +35,9 @@ Analysis regions are not presentation layers. They describe what the models foun
 
 ## Undo and redo
 
-Use **Edit -> Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Shift+Z`). One pipeline invocation is recorded as one undo group even though its page-stage results commit incrementally.
+Use **Edit -> Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Shift+Z`, or `Ctrl+Y` on Windows/Linux). The **History** tab lists every named edit and pipeline stage. Select a row to jump to that state; making a new edit discards rows after the selected state.
 
-Undo history belongs to the current session. Closing and reopening a project loads the newest durable state without restoring the previous session's undo stack.
+Use the camera button to pin a named snapshot, restore it later, or delete it. Clearing history keeps the current state and named snapshots. History remains session-local: closing and reopening a project loads the newest durable state without restoring the previous timeline or snapshots.
 
 ## Review order
 

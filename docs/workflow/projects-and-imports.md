@@ -35,6 +35,16 @@ Imported page bytes are copied into content-addressed project storage; PDF pages
 
 Pages cannot be imported while a processing job is running.
 
+## Import galleries from the web
+
+**Import galleries** (on the project screen and in **File**) downloads several galleries into **one new project**. Paste up to 20 links, one per line, from e-hentai, exhentai or nhentai (at most 500 pages in total). Optionally name the project. Galleries are imported in the order you list them, so every gallery's pages stay contiguous.
+
+- The new project replaces the open one only after every page has downloaded and decoded. Until then a failed import changes nothing; the previous project's saved state is never altered.
+- Downloaded files and a `manifest.json` (source links, titles, tags, and the first and last page of each gallery) are kept under `Documents/Koharu/gallery-downloads/<job>/`; pages are named `NN-<gallery>-NNN.<ext>`.
+- exhentai needs your `ipb_member_id`, `ipb_pass_hash` and `igneous` cookies as a cookie header. Koharu stores them in the operating system credential service and never shows them again; leave the field empty to reuse the saved ones.
+- Every link and every redirect is validated: HTTPS only, no credentials in the URL, and only public internet addresses. Images are verified by content (PNG, JPEG or WebP), not by file name.
+- Pages cannot be imported while a processing job is running.
+
 ## Organize pages
 
 Use the page rail to:

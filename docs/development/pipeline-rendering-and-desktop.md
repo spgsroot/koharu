@@ -19,6 +19,8 @@ An execution unit is one stage on one page. Pages enter in project order, but a 
 
 Each stage produces a semantic scene patch. The application commits it immediately, synchronizes the current canvas, and groups all revisions from one invocation into one undo step.
 
+Translation stages run in selected-page order. Each request derives same-target-language source/translation pairs from preceding pages in the latest committed scene, so later pages see earlier results from the same run. Source edits discard generated translations but preserve authored ones; there is no separate cross-project conversation cache.
+
 ## Scheduling and residency
 
 Accelerator inference uses one admission lane because representative heterogeneous overlap reduced throughput through compute and memory-bandwidth contention. CPU-only execution can retain independent per-model lanes.
@@ -26,6 +28,8 @@ Accelerator inference uses one admission lane because representative heterogeneo
 Models load lazily and remain available for reuse. The residency manager observes resident and peak workspace memory, keeps a safety margin, evicts idle models in least-recently-used order when needed, and retries one learned out-of-memory case after cleanup.
 
 Stopping is cooperative. No new stage starts after the stop request; an active native call returns safely, and its result is discarded if it has not committed.
+
+Manual Fast, FLUX Inpainting, and Decensor masks share a native FIFO admission queue. Settings are captured at submission, while scene state is captured at execution so each job sees earlier edits. Queue waits do not occupy the accelerator lane; cancellation wakes waiting jobs immediately. Project-session changes stop both queued and running work, and bounded terminal results remain queryable through the automation API. Browser stroke previews survive same-page frame swaps and are released at pointer-up, independently of pending native jobs.
 
 ## Retained rendering
 

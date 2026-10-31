@@ -7,6 +7,8 @@ description: Diagnose startup, download, device, processing, provider, agent, fo
 
 Start with the exact error shown in the startup view, activity center, or dialog. Avoid deleting project or cache data until you know which boundary failed.
 
+Pipeline errors include the failing stage and its complete cause chain in both the activity message and logs. Keep the nested cause when reporting a failure. Provider authentication errors such as HTTP `401` require correcting that provider's credentials; an unavailable local endpoint requires starting or correcting the local service. Neither error is repaired by rerunning image cleanup.
+
 ## Koharu does not finish starting
 
 The native runtime initializes before the project browser becomes interactive. On first launch, confirm that GitHub release assets are reachable and let active downloads finish.
@@ -52,7 +54,7 @@ Open **Settings -> Providers** and verify the credential, base URL, and provider
 
 ## Koharu Agent cannot sign in or run
 
-Only one device sign-in or agent request may run at a time. Cancel the existing attempt, verify the browser authorization completed for the intended ChatGPT account, and retry. Agent sign-in is separate from OpenAI provider credentials.
+Only one device sign-in or agent request may run at a time. Cancel the existing attempt, verify the browser authorization completed for the intended Codex, Grok or Kimi Code account, and retry. Agent sign-in is separate from provider API keys.
 
 ## Text is missing or malformed
 

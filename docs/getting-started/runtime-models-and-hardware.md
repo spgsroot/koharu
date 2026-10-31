@@ -51,7 +51,9 @@ Downloads are staged and then published into the cache. A failed or interrupted 
 
 ## Resource monitoring
 
-The editor reports host memory, compute utilization, and model residency. Pipeline models load lazily and can remain resident for reuse. On accelerator systems, Koharu may evict an idle model when the next stage needs more memory.
+The lower-left editor indicator shows process RAM and CPU plus utilization of the accelerator selected for models. Hover or open it for the device name and VRAM usage. An unmeasured GPU shows a dash, not an idle `0%`; CPU-only execution omits the GPU indicator rather than reporting an unrelated adapter.
+
+Pipeline models load lazily and can remain resident for reuse. Inpainting and decensoring share native weights when they select the same model, while their prompts remain independent. On accelerator systems, Koharu may evict an idle model when the next stage needs more memory.
 
 Smaller local-model quantizations use less memory, usually with some quality trade-off. Begin with a moderate quantization instead of choosing the largest file your disk can hold.
 

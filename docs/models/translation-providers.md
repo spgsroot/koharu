@@ -12,12 +12,15 @@ Koharu presents one model picker across local and hosted translation backends. A
 The current provider set includes:
 
 - **Local** GGUF models through llama.cpp;
-- **Atlas Cloud**, **OpenAI**, **Gemini**, **Claude**, **Grok**, **MiniMax**, and **DeepSeek**;
+- **Atlas Cloud**, **OpenAI**, **Gemini**, **Claude**, **Grok**, **Cursor**, **MiniMax**, and **DeepSeek**;
 - **OpenRouter**;
 - **LM Studio** and a generic **OpenAI-compatible** endpoint;
 - **DeepL**, **Google Cloud Translation**, and **Caiyun**.
 
 Provider modules own their endpoint defaults, request mapping, and model catalog or discovery. The model list can therefore change without a Koharu documentation release.
+
+Cursor translates through the [Cloud Agents API](https://cursor.com/docs/cloud-agent/api/endpoints). Koharu starts a no-repository agent in plan mode, waits for the run result, then deletes the agent. It does not open a pull request. Store the key as `cursor`, or set `CURSOR_API_KEY` for the CLI. A run is limited to five minutes and counts against Cloud Agent quota.
+
 
 ## Configure a connection
 

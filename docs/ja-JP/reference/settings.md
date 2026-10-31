@@ -16,11 +16,13 @@ description: 各設定ページと保存動作のリファレンスです。
 
 ## パイプライン
 
-検出、OCR、インペイントのモデルを選びます。モデル所有の設定として、検出の文字・吹き出し・コマしきい値、生成インペイントの正・負プロンプトが表示されます。モデルを切り替えても各プロファイルは独立して保持されます。
+検出、OCR、吹き出し内の文字修復、絵の上の文字修復、検閲除去のモデルを個別に選びます。吹き出しは LaMa または AOT を使い、均一な背景は推論なしで塗りつぶします。絵の上の文字や効果音は既定で FLUX.2 Klein 9B を使います。文字修復と検閲除去のプロンプト、サンプリング設定、接続先は、同じモデルを選んでも共有しません。検閲検出の有効化、モザイク検出、しきい値、マスクの膨張とぼかしは検閲検出ステージが所有します。
+
+吹き出しモデルは `[pipeline.inpainting] bubbles`、絵の修復モデルは `[pipeline.inpainting.artwork] model`、各プロファイルは `[pipeline.inpainting.artwork.<model>]` に保存します。検閲除去は `[pipeline.decensor.<model>]` のままです。古いフラットなインペイント設定は読み込みません。文字修復用の設定だけを新しい名前空間へ戻し、検閲除去のプロンプトを流用しないでください。古い結合マスクだけを持つページは、先にページ全体で検出を再実行してください。
 
 ## プロバイダー
 
-Local、Atlas Cloud、OpenAI、Gemini、Claude、DeepSeek、OpenAI-compatible、OpenRouter、LM Studio、DeepL、Google Cloud Translation、Caiyun を設定します。
+Local、Atlas Cloud、OpenAI、Gemini、Claude、Cursor、DeepSeek、OpenAI-compatible、OpenRouter、LM Studio、DeepL、Google Cloud Translation、Caiyun を設定します。
 
 認証情報は OS の資格情報サービスへ、URL と非秘密設定は共通設定ファイルへ保存されます。変更後はモデルカタログを更新します。
 
@@ -36,6 +38,6 @@ Local、Atlas Cloud、OpenAI、Gemini、Claude、DeepSeek、OpenAI-compatible、
 
 ## ショートカット
 
-選択、テキスト、描画、消しゴム、カラーピッカー、削除、移動、ウィンドウに合わせるへ 1 文字を割り当てます。現在のショートカット編集は実行中 UI セッションを更新し、`~/.koharu/config.toml` には含まれません。
+選択、テキスト、描画、消しゴム、カラーピッカー、削除、検閲除去、移動、ウィンドウに合わせるへ 1 文字を割り当てます。現在のショートカット編集は実行中 UI セッションを更新し、`~/.koharu/config.toml` には含まれません。
 
 パイプライン、プロバイダー、翻訳、組版、Agent の設定は `~/.koharu/config.toml` の所有セクションに保存されます。認証情報はこのファイルへ書かないでください。

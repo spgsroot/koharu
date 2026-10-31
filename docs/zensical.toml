@@ -31,6 +31,12 @@ nav = [
       "zh-CN/getting-started/runtime-models-and-hardware.md",
     ] },
   ] },
+  { "Fork" = [
+    { "English" = [
+      "fork/index.md",
+      "fork/cleanup-evidence.md",
+    ] },
+  ] },
   { "Workflow" = [
     { "English" = [
       "workflow/projects-and-imports.md",
@@ -40,6 +46,7 @@ nav = [
       "workflow/cleanup-and-inpainting.md",
       "workflow/typesetting.md",
       "workflow/export.md",
+      "workflow/orders.md",
     ] },
     { "日本語" = [
       "ja-JP/workflow/projects-and-imports.md",
@@ -109,6 +116,8 @@ nav = [
       "development/architecture.md",
       "development/scene-and-storage.md",
       "development/pipeline-rendering-and-desktop.md",
+      "development/generative-inpainting-integrations.md",
+      "development/automation-api.md",
     ] },
     { "日本語" = [
       "ja-JP/development/contributing.md",
