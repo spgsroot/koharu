@@ -1,3 +1,4 @@
+mod msvc;
 mod rewrite;
 
 use std::{fs, io::Write, path::Path};
@@ -48,8 +49,15 @@ impl Generator {
     }
 
     pub fn generate(self) -> Result<String> {
-        let bindings = self
-            .builder
+        let builder = msvc::target_args()
+            .into_iter()
+            .chain(
+                msvc::system_include_dirs()
+                    .into_iter()
+                    .map(|dir| format!("-isystem{}", dir.display())),
+            )
+            .fold(self.builder, |builder, arg| builder.clang_arg(arg));
+        let bindings = builder
             .generate()
             .map_err(|error| anyhow::anyhow!("{error}"))
             .context("failed to run bindgen")?;

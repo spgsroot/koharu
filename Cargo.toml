@@ -41,11 +41,22 @@ koharu-renderer = { path = "crates/koharu-renderer" }
 koharu-rasterizer = { path = "crates/koharu-rasterizer", default-features = false }
 koharu-desktop = { path = "crates/koharu-desktop" }
 koharu-secrets = { path = "crates/koharu-secrets" }
+koharu-orders = { path = "crates/koharu-orders" }
+koharu-usage = { path = "crates/koharu-usage" }
+
+# order persistence and translation exchange formats
+rusqlite = { version = "0.37", features = ["bundled"] }
+calamine = "0.31"
+rust_xlsxwriter = "0.90"
+csv = "1.4"
+time = { version = "0.3.55", default-features = false, features = ["std"] }
 
 # external dependencies
 alphanumeric-sort = "1.5.8"
+axum = "=0.8.4"
 arc-swap = "1.9.2"
 hayro = "0.7.1"
+html5ever = "0.39.0"
 image = "0.25.10"
 webp = { version = "0.3.1" }
 fast_image_resize = { version = "6.1.0", features = ["image", "rayon"] }
@@ -57,7 +68,7 @@ ab_glyph = "0.2.32"
 clap = { version = "4.6.6", features = ["derive"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-specta = { version = "=2.0.0-rc.25", features = ["derive", "url", "uuid"] }
+specta = { version = "=2.0.0-rc.25", features = ["derive", "url", "uuid", "serde_json"] }
 specta-typescript = "=0.0.12"
 tokio = { version = "1.53.1", features = ["full"] }
 log = "0.4.33"
@@ -91,6 +102,7 @@ reqwest-retry = "0.9.1"
 secrecy = { version = "0.10.3", features = ["serde"] }
 toml = "1.1.4"
 url = { version = "2.5.8", features = ["serde"] }
+unicode-normalization = "0.1"
 petgraph = "0.8.3"
 imbl = "7.0.1"
 hashbrown = "0.17.1"
@@ -104,6 +116,7 @@ nvml-wrapper = "0.12.1"
 minijinja = "2.24.0"
 minijinja-contrib = { version = "2.24.0", features = ["pycompat"] }
 indoc = "2.0.7"
+regex = "1.13.1"
 windows = { version = "0.62.2", features = [
     "Win32",
     "Win32_System",
@@ -128,14 +141,11 @@ tauri = { git = "https://github.com/tauri-apps/tauri", rev = "78b9e169eefcc6ff05
     "macos-private-api",
     "specta",
     "x11",
-    "devtools",
 ] }
 tauri-build = { git = "https://github.com/tauri-apps/tauri", rev = "78b9e169eefcc6ff052f2e3e99225f7dce8144cd" }
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
 tauri-plugin-opener = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
-tauri-plugin-process = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
 tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
-tauri-plugin-updater = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
 tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 schemars = { version = "1.2.2", features = ["chrono04", "indexmap2", "uuid1"] }

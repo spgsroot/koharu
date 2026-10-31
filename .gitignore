@@ -51,6 +51,8 @@ test-results/
 # integration-tests shared runtime cache
 .cache/
 
+.firecrawl/
+
 # SponsorKit runtime cache (the generated SVG is tracked)
 .cache.json
 
