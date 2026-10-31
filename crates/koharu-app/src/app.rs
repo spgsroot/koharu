@@ -5,6 +5,7 @@ use tokio::sync::Mutex;
 use crate::commands::{
     agent::AgentState,
     canvas::CanvasChannel,
+    editing::LayerClipboardState,
     lifecycle::{
         Download, DownloadChannel, DownloadState, Initialization, ModelResources, ProjectChannel,
         ResourceChannel,
@@ -72,6 +73,15 @@ pub fn run(context: tauri::Context<Cef>) -> Result<()> {
         ("remote-debugging-port", Some("4000")),
         ("--use-mock-keychain", None),
     ]);
+    // Opt-in DevTools protocol for UI automation such as documentation
+    // captures. It grants full control of the app, so it stays off unless the
+    // variable names a port; Chromium binds it to loopback.
+    let builder = match std::env::var("KOHARU_REMOTE_DEBUGGING_PORT") {
+        Ok(port) if port.parse::<u16>().is_ok() => {
+            builder.command_line_args([("remote-debugging-port", Some(port))])
+        }
+        _ => builder,
+    };
     #[cfg(target_os = "linux")]
     let builder = builder.command_line_args([
         ("enable-unsafe-webgpu", None),
@@ -107,11 +117,9 @@ pub fn run(context: tauri::Context<Cef>) -> Result<()> {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(crate::commands::bindings().invoke_handler())
         .setup(move |application| {
-            #[cfg(target_os = "windows")]
+            #[cfg(all(target_os = "windows", not(debug_assertions)))]
             koharu_runtime::Store::configure(
                 application
                     .path()
@@ -123,7 +131,9 @@ pub fn run(context: tauri::Context<Cef>) -> Result<()> {
             application.manage(CurrentProject {
                 project: Mutex::new(None),
             });
-            application.manage(ProjectLibrary::new()?);
+            let library = ProjectLibrary::new()?;
+            application.manage(crate::commands::orders::Orders::new(library.root())?);
+            application.manage(library);
             application.manage(Processing::default());
             application.manage(CanvasChannel::default());
             application.manage(JobChannel::default());
@@ -131,6 +141,7 @@ pub fn run(context: tauri::Context<Cef>) -> Result<()> {
             application.manage(ResourceChannel::default());
             application.manage(ProjectChannel::default());
             application.manage(Initialization::default());
+            application.manage(LayerClipboardState::default());
 
             let handle = application.handle().clone();
             application.manage(koharu_desktop::Desktop::new()?);
@@ -156,6 +167,9 @@ pub fn run(context: tauri::Context<Cef>) -> Result<()> {
                     .await
                     .expect("failed to initialize the desktop runtime");
                 initialization_handle.state::<Initialization>().ready();
+                if let Err(error) = crate::automation::serve(initialization_handle).await {
+                    tracing::error!(%error, "Koharu automation API stopped");
+                }
             }));
 
             let mut downloads = koharu_runtime::download::subscribe();
@@ -258,12 +272,7 @@ pub fn run(context: tauri::Context<Cef>) -> Result<()> {
                 event,
                 WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
             ) {
-                let processing = window.state::<Processing>();
-                for stop in processing.stops.lock().values() {
-                    stop.stop();
-                }
-                processing.stops.lock().clear();
-                processing.jobs.lock().clear();
+                let _ = window.state::<Processing>().reset();
                 window.state::<AgentState>().cancel_all();
             }
             if matches!(event, WindowEvent::Destroyed) {

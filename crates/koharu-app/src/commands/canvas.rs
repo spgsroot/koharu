@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context as _, anyhow, bail};
 use image::{GrayImage, ImageEncoder as _, codecs::png::PngEncoder};
 use koharu_desktop::{CanvasState, Desktop, Frame, TransformFrame};
+use koharu_pipeline::CleanupTarget;
 use koharu_rasterizer::ResourceId;
 use koharu_scene::{EntityId, Revision};
 use parking_lot::Mutex;
@@ -14,10 +15,13 @@ use tauri::{
 };
 
 use super::{
-    ChannelExt as _, Error, processing,
+    ChannelExt as _, Error,
+    lifecycle::ProjectChannel,
+    processing,
     processing::{JobChannel, JobId, Processing},
     project::{CurrentProject, Page, Project, RasterStrokeMode},
 };
+use crate::history::HistoryName;
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, Type)]
 pub struct Point {
@@ -149,19 +153,21 @@ pub(crate) async fn add_point_text(
     desktop: State<'_, Desktop>,
     project: State<'_, CurrentProject>,
     canvas_channel: State<'_, CanvasChannel>,
+    project_channel: State<'_, ProjectChannel>,
 ) -> Result<LayerCommit, Error> {
-    let (commit, page, layer) = {
+    let (commit, page, info, layer) = {
         let mut project = project.project.lock().await;
         let project = project.as_mut().context("no project is open")?;
         let page = project
             .active_page()
             .context("the project has no active page")?;
         let (commit, layer) = project.add_point_text(page, point).await?;
-        project.record_commit(&commit);
-        (commit, project.active_page(), layer)
+        project.record_named(HistoryName::AddText, None, None, &commit);
+        (commit, project.active_page(), project.info(), layer)
     };
     desktop.synchronize(&commit.snapshot, page, &commit).await?;
     canvas_channel.channel.publish(desktop.canvas_state());
+    project_channel.channel.publish(Some(info));
     Ok(LayerCommit {
         revision: commit.revision,
         layer,
@@ -181,19 +187,21 @@ pub(crate) async fn add_text_box(
     desktop: State<'_, Desktop>,
     project: State<'_, CurrentProject>,
     canvas_channel: State<'_, CanvasChannel>,
+    project_channel: State<'_, ProjectChannel>,
 ) -> Result<LayerCommit, Error> {
-    let (commit, page, layer) = {
+    let (commit, page, info, layer) = {
         let mut project = project.project.lock().await;
         let project = project.as_mut().context("no project is open")?;
         let page = project
             .active_page()
             .context("the project has no active page")?;
         let (commit, layer) = project.add_text_box(page, frame).await?;
-        project.record_commit(&commit);
-        (commit, project.active_page(), layer)
+        project.record_named(HistoryName::AddText, None, None, &commit);
+        (commit, project.active_page(), project.info(), layer)
     };
     desktop.synchronize(&commit.snapshot, page, &commit).await?;
     canvas_channel.channel.publish(desktop.canvas_state());
+    project_channel.channel.publish(Some(info));
     Ok(LayerCommit {
         revision: commit.revision,
         layer,
@@ -208,6 +216,7 @@ pub(crate) async fn add_text_box(
 )]
 #[tauri::command]
 #[specta::specta]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn commit_paint(
     expected_revision: Revision,
     layer: Option<EntityId>,
@@ -216,6 +225,7 @@ pub(crate) async fn commit_paint(
     desktop: State<'_, Desktop>,
     project: State<'_, CurrentProject>,
     canvas_channel: State<'_, CanvasChannel>,
+    project_channel: State<'_, ProjectChannel>,
 ) -> Result<LayerCommit, Error> {
     commit_raster_stroke(
         expected_revision,
@@ -227,6 +237,7 @@ pub(crate) async fn commit_paint(
         &desktop,
         &project,
         &canvas_channel,
+        &project_channel,
     )
     .await
 }
@@ -239,6 +250,7 @@ pub(crate) async fn commit_paint(
 )]
 #[tauri::command]
 #[specta::specta]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn commit_erase(
     expected_revision: Revision,
     layer: EntityId,
@@ -247,6 +259,7 @@ pub(crate) async fn commit_erase(
     desktop: State<'_, Desktop>,
     project: State<'_, CurrentProject>,
     canvas_channel: State<'_, CanvasChannel>,
+    project_channel: State<'_, ProjectChannel>,
 ) -> Result<LayerCommit, Error> {
     commit_raster_stroke(
         expected_revision,
@@ -258,6 +271,7 @@ pub(crate) async fn commit_erase(
         &desktop,
         &project,
         &canvas_channel,
+        &project_channel,
     )
     .await
 }
@@ -273,8 +287,9 @@ async fn commit_raster_stroke(
     desktop: &Desktop,
     project: &CurrentProject,
     canvas_channel: &CanvasChannel,
+    project_channel: &ProjectChannel,
 ) -> Result<LayerCommit, Error> {
-    let (commit, page, element) = {
+    let (commit, page, info, element) = {
         let mut project = project.project.lock().await;
         let project = project.as_mut().context("no project is open")?;
         ensure_revision(project.snapshot().revision(), expected_revision)?;
@@ -297,11 +312,16 @@ async fn commit_raster_stroke(
                     .collect(),
             )
             .await?;
-        project.record_commit(&commit);
-        (commit, project.active_page(), element)
+        let name = match mode {
+            RasterStrokeMode::Paint => HistoryName::Brush,
+            RasterStrokeMode::Erase => HistoryName::Erase,
+        };
+        project.record_named(name, None, None, &commit);
+        (commit, project.active_page(), project.info(), element)
     };
     desktop.synchronize(&commit.snapshot, page, &commit).await?;
     canvas_channel.channel.publish(desktop.canvas_state());
+    project_channel.channel.publish(Some(info));
     Ok(LayerCommit {
         revision: commit.revision,
         layer: element,
@@ -322,21 +342,23 @@ pub(crate) async fn commit_transform(
     desktop: State<'_, Desktop>,
     project: State<'_, CurrentProject>,
     canvas_channel: State<'_, CanvasChannel>,
+    project_channel: State<'_, ProjectChannel>,
 ) -> Result<Option<Revision>, Error> {
     let geometries = desktop.transform_geometries(expected_revision, &elements)?;
     if geometries.is_empty() {
         return Ok(None);
     }
-    let (commit, page) = {
+    let (commit, page, info) = {
         let mut project = project.project.lock().await;
         let project = project.as_mut().context("no project is open")?;
         ensure_revision(project.snapshot().revision(), expected_revision)?;
         let commit = project.set_geometries(geometries).await?;
-        project.record_commit(&commit);
-        (commit, project.active_page())
+        project.record_named(HistoryName::Transform, None, None, &commit);
+        (commit, project.active_page(), project.info())
     };
     desktop.synchronize(&commit.snapshot, page, &commit).await?;
     canvas_channel.channel.publish(desktop.canvas_state());
+    project_channel.channel.publish(Some(info));
     Ok(Some(commit.revision))
 }
 
@@ -349,9 +371,11 @@ pub(crate) async fn commit_transform(
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn commit_inpaint(
+    page: EntityId,
     expected_revision: Revision,
     points: Vec<Point>,
     diameter: f32,
+    target: CleanupTarget,
     handle: AppHandle<Cef>,
     project: State<'_, CurrentProject>,
 ) -> Result<Option<JobId>, Error> {
@@ -367,47 +391,58 @@ pub(crate) async fn commit_inpaint(
     {
         return Err(anyhow!("inpaint stroke points must be finite").into());
     }
-    let (page, width, height) = {
-        let project = project.project.lock().await;
-        let project = project.as_ref().context("no project is open")?;
-        let snapshot = project.snapshot();
-        ensure_revision(snapshot.revision(), expected_revision)?;
-        let page = project
-            .active_page()
-            .context("the project has no active page")?;
+    let (width, height, session, pipeline) = {
+        let current = project.project.lock().await;
+        let current = current.as_ref().context("no project is open")?;
+        let snapshot = current.snapshot();
+        if expected_revision > snapshot.revision() {
+            return Err(anyhow!("the stroke refers to a future project revision").into());
+        }
         let page_value = snapshot.page(page)?.page()?;
         (
-            page,
             page_value.width.round() as u32,
             page_value.height.round() as u32,
+            handle.state::<Processing>().session(),
+            handle.state::<koharu_pipeline::Pipeline>().capture()?,
         )
     };
+    // Preparation may take different times for long and short strokes. Admit
+    // them in submission order rather than in PNG-worker completion order.
+    let queue = handle.state::<Processing>();
+    let _submission = queue.submission.lock().await;
     let (png, bounds) =
         tokio::task::spawn_blocking(move || encode_mask(width, height, &points, diameter))
             .await
             .context("inpaint mask worker stopped unexpectedly")??;
-    *handle.state::<Processing>().inpainting_mask.lock() = Some(koharu_pipeline::InpaintingMask {
-        page,
-        png: Arc::from(png),
-    });
     Ok(Some(
-        processing::process(
+        processing::process_with_inpainting_mask(
             handle.clone(),
             koharu_pipeline::Scope::Region { page, bounds },
             koharu_pipeline::Operation::Only {
-                stage: koharu_pipeline::Stage::Inpainting,
+                stage: target.stage(),
             },
             handle.state::<CurrentProject>(),
             handle.state::<Processing>(),
             handle.state::<JobChannel>(),
+            koharu_pipeline::InpaintingMask {
+                page,
+                target,
+                png: Arc::from(png),
+            },
+            session,
+            pipeline,
         )
         .await?,
     ))
 }
 
+/// A gesture started on `expected` still applies after other jobs committed:
+/// it names its own layers and page coordinates, so only a revision this
+/// process has never seen is rejected. Dropping the gesture instead would
+/// silently lose user work whenever a pipeline commits mid-stroke.
 fn ensure_revision(actual: Revision, expected: Revision) -> anyhow::Result<()> {
-    if actual != expected {
-        bail!("canvas edit expected revision {expected}, but the project is at {actual}");
+    if expected > actual {
+        bail!("canvas edit refers to future revision {expected}; the project is at {actual}");
     }
     Ok(())
 }
@@ -484,4 +519,67 @@ fn encode_mask(
             height: f64::from(bottom - top + 1),
         },
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn decode(png: &[u8]) -> GrayImage {
+        image::load_from_memory(png).unwrap().to_luma8()
+    }
+
+    /// `[left, top, right, bottom]` of every painted pixel.
+    fn painted_extent(mask: &GrayImage) -> [u32; 4] {
+        mask.enumerate_pixels()
+            .filter(|(_, _, pixel)| pixel.0[0] > 0)
+            .fold(
+                [u32::MAX, u32::MAX, 0, 0],
+                |[left, top, right, bottom], (x, y, _)| {
+                    [left.min(x), top.min(y), right.max(x), bottom.max(y)]
+                },
+            )
+    }
+
+    #[test]
+    fn a_stroke_past_the_page_edge_is_clipped_and_its_region_covers_every_painted_pixel() {
+        let off_the_left = [Point { x: -5.0, y: 3.5 }, Point { x: 2.0, y: 3.5 }];
+        let (png, bounds) = encode_mask(8, 8, &off_the_left, 2.0).unwrap();
+        let mask = decode(&png);
+
+        assert_eq!(mask.dimensions(), (8, 8));
+        assert_eq!(mask.get_pixel(0, 3).0[0], 255);
+        assert_eq!(mask.get_pixel(7, 3).0[0], 0);
+        let [left, top, right, bottom] = painted_extent(&mask);
+        assert_eq!(bounds.x, 0.0);
+        assert_eq!(
+            (bounds.x, bounds.y, bounds.width, bounds.height),
+            (
+                f64::from(left),
+                f64::from(top),
+                f64::from(right - left + 1),
+                f64::from(bottom - top + 1)
+            )
+        );
+
+        // A brush wider than the page paints all of it and never reaches past it.
+        let (png, bounds) = encode_mask(8, 6, &[Point { x: 4.0, y: 3.0 }], 100.0).unwrap();
+        assert_eq!(decode(&png).dimensions(), (8, 6));
+        assert_eq!(
+            (bounds.x, bounds.y, bounds.width, bounds.height),
+            (0.0, 0.0, 8.0, 6.0)
+        );
+    }
+
+    #[test]
+    fn a_stroke_that_misses_the_page_paints_nothing() {
+        for point in [
+            Point { x: 40.0, y: 40.0 },
+            Point { x: -40.0, y: -40.0 },
+            Point { x: 4.0, y: 40.0 },
+        ] {
+            assert!(encode_mask(8, 8, &[point], 4.0).is_err());
+        }
+        assert!(encode_mask(0, 8, &[Point { x: 1.0, y: 1.0 }], 4.0).is_err());
+    }
 }

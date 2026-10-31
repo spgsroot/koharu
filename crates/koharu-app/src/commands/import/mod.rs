@@ -14,6 +14,14 @@ mod pdf;
 mod rar;
 mod zip;
 
+// Untrusted imports are bounded like the Python engine's `_archive_pages`:
+// at most 500 pages and 512 MiB of decompressed bytes per archive.
+pub(super) const MAX_PAGES: usize = 500;
+pub(super) const MAX_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
+// Raster edge cap: downstream RgbaImage allocations trust header-declared
+// dimensions, which a small untrusted file can inflate.
+pub(super) const MAX_IMAGE_EDGE: u32 = 16384;
+
 #[derive(Clone, Copy, EnumIter, EnumMessage, EnumString)]
 #[strum(ascii_case_insensitive)]
 pub(super) enum Format {
@@ -62,6 +70,12 @@ fn decode(path: &Path, source: EncodedPage) -> Result<Page> {
                 path.display()
             )
         })?;
+    if width.max(height) > MAX_IMAGE_EDGE {
+        bail!(
+            "imported image {} ({name}) declares {width}x{height}, above the {MAX_IMAGE_EDGE}px edge limit",
+            path.display()
+        );
+    }
     Ok(Page {
         name,
         bytes: Arc::<[u8]>::from(bytes),
@@ -75,6 +89,9 @@ pub(super) fn import(mut paths: Vec<PathBuf>) -> Result<Vec<Page>> {
     alphanumeric_sort::sort_slice_by_os_str_key(&mut paths, |path| {
         path.file_name().unwrap_or_else(|| path.as_os_str())
     });
+    // rayon's `FromParallelIterator<Result<T, E>> for Result` latches the
+    // first `Err` via `while_some`, so sibling archives stop early instead
+    // of decoding the whole import after a failure.
     let mut groups = paths
         .into_par_iter()
         .map(|path| -> Result<Vec<Page>> {
@@ -144,5 +161,26 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["page1.png", "page2.png", "page10.PNG"]
         );
+    }
+
+    #[test]
+    fn decode_rejects_image_beyond_edge_limit() {
+        let image =
+            image::RgbaImage::from_pixel(MAX_IMAGE_EDGE + 1, 1, image::Rgba([0, 0, 0, 255]));
+        let mut encoded = Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(image)
+            .write_to(&mut encoded, ImageFormat::Png)
+            .expect("encode fixture");
+
+        let error = decode(
+            Path::new("huge.png"),
+            EncodedPage {
+                name: "huge.png".to_owned(),
+                bytes: encoded.into_inner(),
+            },
+        )
+        .map(|_| "unexpectedly accepted")
+        .expect_err("oversized image should be rejected");
+        assert!(error.to_string().contains("edge limit"));
     }
 }

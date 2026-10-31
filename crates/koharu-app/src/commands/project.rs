@@ -1,17 +1,22 @@
-use std::{collections::HashSet, io::Cursor, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    io::Cursor,
+    path::PathBuf,
+};
 
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, bail};
 use image::{DynamicImage, ImageFormat, RgbaImage};
 use koharu_desktop::Frame;
 use koharu_scene::{
-    AssetInput, AssetMetadata, AssetRole, At, Authored, Commit, EntityId, EntityOrigin,
+    AssetInput, AssetMetadata, AssetRole, At, Authored, BlobId, Commit, EntityId, EntityOrigin,
     Geometry as SceneGeometry, Group as SceneGroup, Origin, PageDraft, Point as ScenePoint,
     Presents, RasterLayer as SceneRasterLayer, RasterLayerKind, Region as SceneRegion,
     RemovePolicy, Revision, Session, Snapshot, SourceText as SceneSourceText,
     TextGroup as SceneTextGroup, TextLayout as SceneTextLayout, TextLayoutKind,
-    Translation as SceneTranslation, Typography as SceneTypography, Visibility as SceneVisibility,
+    TextRole as SceneTextRole, Translation as SceneTranslation, Typography as SceneTypography,
+    Visibility as SceneVisibility,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specta::Type;
 use tokio::sync::Mutex;
 
@@ -19,6 +24,7 @@ use super::{
     canvas::Point,
     editing::{GeometryUpdate, TypographyUpdate},
 };
+use crate::history::{DEFAULT_CAPACITY, History, HistoryName, HistoryView};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RasterStrokeMode {
@@ -26,13 +32,25 @@ pub(crate) enum RasterStrokeMode {
     Erase,
 }
 
+/// The outcome of committing pipeline output onto the latest document.
+pub(crate) enum Rebased {
+    Applied(Commit),
+    /// Nothing was left to change after rebasing.
+    Unchanged,
+    /// A document edit conflicted with the output, which was discarded.
+    Superseded,
+}
+
 #[derive(Clone, Debug, Serialize, Type)]
 pub struct ProjectInfo {
+    /// Fresh for every opening, including a reopening of the same project file.
+    pub session: EntityId,
     pub name: String,
     pub revision: Revision,
     pub active_page: Option<EntityId>,
     pub can_undo: bool,
     pub can_redo: bool,
+    pub history: HistoryView,
 }
 
 #[derive(Clone, Debug, Serialize, Type)]
@@ -61,6 +79,7 @@ pub struct Page {
     pub id: EntityId,
     pub label: String,
     pub size: PageSize,
+    pub censor_mask_asset: Option<String>,
     pub layers: Vec<Layer>,
     pub regions: Vec<AnalysisRegion>,
 }
@@ -109,6 +128,50 @@ pub enum Layer {
     },
 }
 
+/// Layers copied in the editor. Kept natively so raster pixels never travel
+/// through the webview; pasting validates them against the target page.
+#[derive(Clone, Debug)]
+pub struct LayerClipboard {
+    pub page: EntityId,
+    pub layers: Vec<ClipboardLayer>,
+}
+
+#[derive(Clone, Debug)]
+pub enum ClipboardLayer {
+    Group {
+        name: String,
+        visibility: LayerVisibility,
+        children: Vec<ClipboardLayer>,
+    },
+    Text {
+        geometry: Option<Geometry>,
+        visibility: LayerVisibility,
+        content: ClipboardTextContent,
+        typography: Option<Typography>,
+        layout: TextLayoutKind,
+    },
+    Raster {
+        visibility: LayerVisibility,
+        image: Option<ClipboardRasterImage>,
+        name: String,
+        kind: RasterLayerKind,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub struct ClipboardTextContent {
+    pub source: Option<SourceText>,
+    pub translation: Option<Translation>,
+    pub role: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ClipboardRasterImage {
+    pub bytes: Vec<u8>,
+    pub media_type: String,
+    pub metadata: AssetMetadata,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum GroupRole {
@@ -133,24 +196,24 @@ pub struct AnalysisRegion {
     pub label: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Type)]
+#[derive(Clone, Debug, Deserialize, Serialize, Type)]
 pub struct Geometry {
     pub points: Vec<Point>,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Type)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, Type)]
 pub struct LayerVisibility {
     pub visible: bool,
     pub opacity: f32,
 }
 
-#[derive(Clone, Debug, Serialize, Type)]
+#[derive(Clone, Debug, Deserialize, Serialize, Type)]
 pub struct SourceText {
     pub text: String,
     pub language: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Type)]
+#[derive(Clone, Debug, Deserialize, Serialize, Type)]
 pub struct Translation {
     pub text: String,
     pub language: Option<String>,
@@ -179,14 +242,34 @@ pub(crate) struct ProjectLibrary {
     root: PathBuf,
 }
 
+/// Relocates the project library (and the orders store kept in it) for
+/// portable installs and isolated profiles.
+const PROJECTS_DIR_ENV: &str = "KOHARU_PROJECTS_DIR";
+
 impl ProjectLibrary {
     pub(crate) fn new() -> Result<Self> {
-        let root = dirs::document_dir()
-            .context("the Documents directory is unavailable")?
-            .join("Koharu");
+        let root = match std::env::var_os(PROJECTS_DIR_ENV).filter(|value| !value.is_empty()) {
+            Some(directory) => {
+                let directory = PathBuf::from(directory);
+                anyhow::ensure!(
+                    directory.is_absolute(),
+                    "{PROJECTS_DIR_ENV} must be an absolute path: {}",
+                    directory.display()
+                );
+                directory
+            }
+            None => dirs::document_dir()
+                .context("the Documents directory is unavailable")?
+                .join("Koharu"),
+        };
         std::fs::create_dir_all(&root)
             .with_context(|| format!("failed to create {}", root.display()))?;
         Ok(Self { root })
+    }
+
+    /// Root directory containing every `.khrproj` (and the orders store).
+    pub(crate) fn root(&self) -> &std::path::Path {
+        &self.root
     }
 
     pub(crate) fn list(&self) -> Result<Vec<ProjectSummary>> {
@@ -252,10 +335,10 @@ impl ProjectLibrary {
 
 pub(crate) struct Project {
     pub(crate) session: Session,
+    instance: EntityId,
     pub(crate) name: String,
     pub(crate) active_page: Option<EntityId>,
-    pub(crate) undo: Vec<Vec<Revision>>,
-    pub(crate) redo: Vec<Vec<Revision>>,
+    pub(crate) history: History,
 }
 
 impl Project {
@@ -275,12 +358,13 @@ impl Project {
 
     fn new(session: Session, name: String) -> Self {
         let active_page = session.snapshot().pages().next().map(|page| page.id());
+        let history = History::new(session.snapshot(), active_page, DEFAULT_CAPACITY);
         Self {
             session,
+            instance: EntityId::new(),
             name,
             active_page,
-            undo: Vec::new(),
-            redo: Vec::new(),
+            history,
         }
     }
 
@@ -314,11 +398,13 @@ impl Project {
 
     pub(crate) fn info(&self) -> ProjectInfo {
         ProjectInfo {
+            session: self.instance,
             name: self.name.clone(),
             revision: self.revision(),
             active_page: self.active_page,
-            can_undo: !self.undo.is_empty(),
-            can_redo: !self.redo.is_empty(),
+            can_undo: self.history.can_undo(),
+            can_redo: self.history.can_redo(),
+            history: self.history.view(),
         }
     }
 
@@ -477,9 +563,15 @@ impl Project {
     ) -> Result<Commit> {
         let snapshot = self.snapshot();
         let content = Self::text_content(&snapshot, layer)?;
-        let language = snapshot
-            .component::<SceneSourceText>(content)?
-            .and_then(|source| source.language);
+        let previous = snapshot.component::<SceneSourceText>(content)?;
+        let changed = previous
+            .as_ref()
+            .is_none_or(|source| source.text.value != text);
+        let language = previous.and_then(|source| source.language);
+        let invalidate_translation = changed
+            && snapshot
+                .component::<SceneTranslation>(content)?
+                .is_some_and(|translation| matches!(translation.text.origin, Origin::Generated(_)));
         let patch = snapshot.patch(|edit| {
             edit.promote_entity_to_user(layer)?;
             edit.promote_entity_to_user(content)?;
@@ -489,7 +581,11 @@ impl Project {
                     text: Authored::user(text),
                     language,
                 },
-            )
+            )?;
+            if invalidate_translation {
+                edit.remove::<SceneTranslation>(content)?;
+            }
+            Ok(())
         })?;
         self.commit(patch).await
     }
@@ -519,6 +615,121 @@ impl Project {
             }
         })?;
         self.commit(patch).await
+    }
+
+    /// Applies many translation updates as a single patch so a translation
+    /// import lands atomically and records exactly one history state.
+    pub(crate) async fn set_translations_batch(
+        &mut self,
+        updates: Vec<(EntityId, Option<String>)>,
+    ) -> Result<Commit> {
+        let snapshot = self.snapshot();
+        let updates = updates
+            .into_iter()
+            .map(|(layer, text)| {
+                let content = Self::text_content(&snapshot, layer)?;
+                let language = snapshot
+                    .component::<SceneTranslation>(content)?
+                    .and_then(|translation| translation.language);
+                Ok((layer, content, language, text))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let patch = snapshot.patch(|edit| {
+            for (layer, content, language, text) in updates {
+                edit.promote_entity_to_user(layer)?;
+                edit.promote_entity_to_user(content)?;
+                match text {
+                    Some(text) => edit.set(
+                        content,
+                        &SceneTranslation {
+                            text: Authored::user(text),
+                            language,
+                        },
+                    ),
+                    None => edit.remove::<SceneTranslation>(content),
+                }?;
+            }
+            Ok(())
+        })?;
+        self.commit(patch).await
+    }
+
+    /// Every translatable segment in page order, keyed by its layer entity id
+    /// (the `segment_id` of the translation exchange format).
+    pub(crate) fn translation_segments(
+        snapshot: &Snapshot,
+    ) -> Result<Vec<koharu_orders::SegmentRow>> {
+        let mut segments = Vec::new();
+        for page in snapshot.pages() {
+            let label = page.page()?.label;
+            Self::collect_segments(snapshot, page.id(), &label, &mut segments)?;
+        }
+        Ok(segments)
+    }
+
+    fn collect_segments(
+        snapshot: &Snapshot,
+        parent: EntityId,
+        page_label: &str,
+        segments: &mut Vec<koharu_orders::SegmentRow>,
+    ) -> Result<()> {
+        for child in snapshot.children(parent)? {
+            if !Self::is_layer(snapshot, child)? {
+                continue;
+            }
+            if snapshot.component::<SceneGroup>(child)?.is_some() {
+                Self::collect_segments(snapshot, child, page_label, segments)?;
+                continue;
+            }
+            if snapshot.component::<SceneTextLayout>(child)?.is_none() {
+                continue;
+            }
+            let content = snapshot.text_layer(child)?.content()?;
+            let source = content
+                .source()?
+                .map(|source| source.text.value)
+                .unwrap_or_default();
+            let translation = content
+                .translation()?
+                .map(|translation| translation.text.value);
+            // Segments without any text yet carry nothing to translate.
+            if source.is_empty() && translation.is_none() {
+                continue;
+            }
+            segments.push(koharu_orders::SegmentRow {
+                id: child.to_string(),
+                page: page_label.to_owned(),
+                source,
+                translation,
+            });
+        }
+        Ok(())
+    }
+
+    /// Computed page counters for the orders dashboard; never user input.
+    /// A page is prepared once it carries source text (detection/OCR ran) and
+    /// translated once every one of its segments has a translation.
+    pub(crate) fn page_counts(snapshot: &Snapshot) -> Result<koharu_orders::PageCounts> {
+        let mut counts = koharu_orders::PageCounts::default();
+        for page in snapshot.pages() {
+            counts.total += 1;
+            let mut segments = Vec::new();
+            Self::collect_segments(snapshot, page.id(), &page.page()?.label, &mut segments)?;
+            if segments.iter().any(|segment| !segment.source.is_empty()) {
+                counts.prepared += 1;
+            }
+            if !segments.is_empty()
+                && segments.iter().all(|segment| {
+                    segment
+                        .translation
+                        .as_deref()
+                        .is_some_and(|text| !text.is_empty())
+                })
+            {
+                counts.translated += 1;
+            }
+        }
+        Ok(counts)
     }
 
     pub(crate) async fn set_typography(
@@ -638,6 +849,79 @@ impl Project {
             Ok(())
         })?;
         self.commit(patch).await
+    }
+
+    pub(crate) async fn copy_layers(&self, layers: Vec<EntityId>) -> Result<LayerClipboard> {
+        let snapshot = self.snapshot();
+        let mut expanded = Vec::new();
+        for layer in layers {
+            if snapshot.component::<SceneTextGroup>(layer)?.is_some() {
+                expanded.extend(snapshot.children(layer)?);
+            } else {
+                expanded.push(layer);
+            }
+        }
+        let layers = Self::unique_roots(&snapshot, expanded)?;
+        let Some(first) = layers.first().copied() else {
+            return Ok(LayerClipboard {
+                page: self.active_page.context("the project has no active page")?,
+                layers: Vec::new(),
+            });
+        };
+        let page = Self::owning_page(&snapshot, first)?;
+        if layers
+            .iter()
+            .copied()
+            .map(|layer| Self::owning_page(&snapshot, layer))
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .any(|candidate| candidate != page)
+        {
+            bail!("layers from different pages cannot be copied together");
+        }
+        let source = AssetRole::new("source")?;
+        let mut blobs = HashSet::new();
+        for layer in &layers {
+            Self::collect_clipboard_blobs(&snapshot, *layer, &source, &mut blobs)?;
+        }
+        let mut images = HashMap::new();
+        for blob in blobs {
+            images.insert(blob, snapshot.read_blob(blob).await?.to_vec());
+        }
+        let layers = layers
+            .into_iter()
+            .map(|layer| Self::clipboard_layer(&snapshot, layer, &source, &images))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(LayerClipboard { page, layers })
+    }
+
+    pub(crate) async fn paste_layers(
+        &mut self,
+        page: EntityId,
+        clipboard: LayerClipboard,
+        offset: Point,
+    ) -> Result<(Commit, Vec<EntityId>)> {
+        if !offset.x.is_finite() || !offset.y.is_finite() {
+            bail!("paste offset must contain finite coordinates");
+        }
+        if clipboard.layers.is_empty() {
+            bail!("the layer clipboard is empty");
+        }
+        let snapshot = self.snapshot();
+        let page_value = snapshot.page(page)?.page()?;
+        for layer in &clipboard.layers {
+            Self::validate_clipboard_layer(layer, page_value.width, page_value.height)?;
+        }
+        let mut pasted = Vec::new();
+        let patch = snapshot.patch(|edit| {
+            for layer in &clipboard.layers {
+                pasted.push(Self::paste_clipboard_layer(
+                    &snapshot, edit, page, None, layer, offset,
+                )?);
+            }
+            Ok(())
+        })?;
+        Ok((self.commit(patch).await?, pasted))
     }
 
     pub(crate) async fn delete_layers(&mut self, layers: Vec<EntityId>) -> Result<Commit> {
@@ -856,48 +1140,94 @@ impl Project {
     }
 
     pub(crate) async fn undo(&mut self) -> Result<Commit> {
-        let revisions = self.undo.pop().ok_or_else(|| anyhow!("nothing to undo"))?;
-        let commit = match self.session.undo_many(revisions.iter().copied()).await {
-            Ok(commit) => commit,
-            Err(error) => {
-                self.undo.push(revisions);
-                return Err(error.into());
-            }
-        };
-        self.redo.push(vec![commit.revision]);
-        Ok(commit)
+        self.step(false).await?.context("nothing to undo")
     }
 
     pub(crate) async fn redo(&mut self) -> Result<Commit> {
-        let revisions = self.redo.pop().ok_or_else(|| anyhow!("nothing to redo"))?;
-        let commit = match self.session.undo_many(revisions.iter().copied()).await {
-            Ok(commit) => commit,
-            Err(error) => {
-                self.redo.push(revisions);
-                return Err(error.into());
-            }
-        };
-        self.undo.push(vec![commit.revision]);
+        self.step(true).await?.context("nothing to redo")
+    }
+
+    async fn step(&mut self, forward: bool) -> Result<Option<Commit>> {
+        let (commit, page) = match forward {
+            true => self.history.step_forward(&mut self.session).await?,
+            false => self.history.step_back(&mut self.session).await?,
+        }
+        .with_context(|| match forward {
+            true => "nothing to redo",
+            false => "nothing to undo",
+        })?;
+        self.active_page = page;
+        self.reconcile_page();
+        Ok(Some(commit))
+    }
+    /// Reverts and removes the newest history state after a coupled external
+    /// transaction fails.
+    pub(crate) async fn rollback_history_tip(&mut self) -> Result<Commit> {
+        let (commit, page) = self.history.rollback_tip(&mut self.session).await?;
+        self.active_page = page;
+        self.reconcile_page();
         Ok(commit)
     }
 
-    pub(crate) fn record(&mut self, revisions: Vec<Revision>) {
-        if !revisions.is_empty() {
-            self.undo.push(revisions);
-            self.redo.clear();
-        }
+    /// Moves history to an arbitrary panel entry. Restores the active page
+    /// recorded on the target state when it still exists.
+    pub(crate) async fn jump_to(&mut self, target: usize) -> Result<Option<Commit>> {
+        let Some((commit, page)) = self.history.jump(&mut self.session, target).await? else {
+            return Ok(None);
+        };
+        self.active_page = page;
+        self.reconcile_page();
+        Ok(Some(commit))
     }
 
-    pub(crate) fn record_commit(&mut self, commit: &Commit) {
-        if commit.changes.to != commit.changes.from {
-            self.record(vec![commit.revision]);
-        }
-    }
-
-    pub(crate) async fn commit_rebased(
+    /// Records a commit under a semantic name; the name is part of the call
+    /// signature so no commit can land in history anonymously.
+    pub(crate) fn record_named(
         &mut self,
-        patch: koharu_scene::Patch,
-    ) -> Result<Option<Commit>> {
+        name: HistoryName,
+        detail: Option<String>,
+        merge: Option<EntityId>,
+        commit: &Commit,
+    ) -> bool {
+        self.history.record(
+            &mut self.session,
+            name,
+            detail,
+            merge,
+            commit,
+            self.active_page,
+        )
+    }
+
+    pub(crate) fn clear_history(&mut self) {
+        self.history.clear(&mut self.session);
+    }
+
+    /// Pins the current state as a named snapshot (Photoshop-style).
+    pub(crate) fn create_snapshot(&mut self, name: Option<String>) -> u32 {
+        self.history.create_snapshot(self.session.snapshot(), name)
+    }
+
+    /// Restores a snapshot as a new history state; undoing that state steps
+    /// back to whatever preceded the restore.
+    pub(crate) async fn restore_snapshot(&mut self, id: u32) -> Result<Commit> {
+        let (snapshot, name) = self
+            .history
+            .snapshot(id)
+            .map(|(snapshot, name)| (snapshot.clone(), name.to_owned()))
+            .context("no such history snapshot")?;
+        let commit = self.session.restore(&snapshot).await?;
+        self.history
+            .record_restore(&mut self.session, Some(name), &commit, self.active_page);
+        self.reconcile_page();
+        Ok(commit)
+    }
+
+    pub(crate) fn delete_snapshot(&mut self, id: u32) -> bool {
+        self.history.delete_snapshot(id)
+    }
+
+    pub(crate) async fn commit_rebased(&mut self, patch: koharu_scene::Patch) -> Result<Rebased> {
         let current = self.snapshot();
         let patch = match patch.rebase_on(&current) {
             Ok(patch) => patch,
@@ -907,14 +1237,14 @@ impl Project {
                 | koharu_scene::Error::RelationNotFound(_)),
             ) => {
                 tracing::debug!(%error, "pipeline output was superseded by a document edit");
-                return Ok(None);
+                return Ok(Rebased::Superseded);
             }
             Err(error) => return Err(error.into()),
         };
         if patch.is_empty() {
-            return Ok(None);
+            return Ok(Rebased::Unchanged);
         }
-        Ok(Some(self.commit(patch).await?))
+        Ok(Rebased::Applied(self.commit(patch).await?))
     }
 
     async fn commit(&mut self, patch: koharu_scene::Patch) -> Result<Commit> {
@@ -957,6 +1287,7 @@ impl Project {
                 },
             );
         }
+        let censor_mask_asset = Self::asset_id(snapshot, page, "censor-mask")?;
         let regions = snapshot
             .descendants(page)?
             .map(|entity| {
@@ -977,6 +1308,7 @@ impl Project {
                 width: value.width,
                 height: value.height,
             },
+            censor_mask_asset,
             layers,
             regions,
         })
@@ -1158,6 +1490,287 @@ impl Project {
             }
         }
         Ok(())
+    }
+
+    fn owning_page(snapshot: &Snapshot, mut entity: EntityId) -> Result<EntityId> {
+        while let Some(parent) = snapshot.parent(entity)? {
+            entity = parent;
+        }
+        Ok(entity)
+    }
+
+    fn collect_clipboard_blobs(
+        snapshot: &Snapshot,
+        layer: EntityId,
+        source: &AssetRole,
+        blobs: &mut HashSet<BlobId>,
+    ) -> Result<()> {
+        if snapshot.component::<SceneGroup>(layer)?.is_some() {
+            for child in snapshot.children(layer)? {
+                if Self::is_layer(snapshot, child)? {
+                    Self::collect_clipboard_blobs(snapshot, child, source, blobs)?;
+                }
+            }
+        } else if snapshot.component::<SceneRasterLayer>(layer)?.is_some()
+            && let Some(asset) = snapshot.asset(layer, source)?
+        {
+            blobs.insert(asset.blob);
+        }
+        Ok(())
+    }
+
+    fn clipboard_layer(
+        snapshot: &Snapshot,
+        layer: EntityId,
+        source: &AssetRole,
+        images: &HashMap<BlobId, Vec<u8>>,
+    ) -> Result<ClipboardLayer> {
+        let visibility = Self::layer_visibility(snapshot, layer)?;
+        if let Some(group) = snapshot.component::<SceneGroup>(layer)? {
+            let children = snapshot
+                .children(layer)?
+                .filter(|child| Self::is_layer(snapshot, *child).unwrap_or(false))
+                .map(|child| Self::clipboard_layer(snapshot, child, source, images))
+                .collect::<Result<Vec<_>>>()?;
+            return Ok(ClipboardLayer::Group {
+                name: group.name,
+                visibility,
+                children,
+            });
+        }
+        if let Some(layout) = snapshot.component::<SceneTextLayout>(layer)? {
+            let text = snapshot.text_layer(layer)?;
+            let content = text.content()?;
+            return Ok(ClipboardLayer::Text {
+                geometry: text.frame()?.map(Self::geometry_view),
+                visibility,
+                content: ClipboardTextContent {
+                    source: content.source()?.map(|source| SourceText {
+                        text: source.text.value,
+                        language: source.language.map(|language| language.to_string()),
+                    }),
+                    translation: content.translation()?.map(|translation| Translation {
+                        text: translation.text.value,
+                        language: translation.language.map(|language| language.to_string()),
+                    }),
+                    role: content.role()?.map(|role| role.role),
+                },
+                typography: text.typography()?.map(Self::typography_view),
+                layout: layout.kind,
+            });
+        }
+        if let Some(raster) = snapshot.component::<SceneRasterLayer>(layer)? {
+            let image = snapshot
+                .asset(layer, source)?
+                .map(|asset| {
+                    anyhow::Ok(ClipboardRasterImage {
+                        bytes: images
+                            .get(&asset.blob)
+                            .context("clipboard image was not loaded")?
+                            .clone(),
+                        media_type: asset.media_type,
+                        metadata: asset.metadata,
+                    })
+                })
+                .transpose()?;
+            return Ok(ClipboardLayer::Raster {
+                visibility,
+                image,
+                name: raster.name,
+                kind: raster.kind,
+            });
+        }
+        bail!("only groups, text layers and raster paint layers can be copied")
+    }
+
+    fn validate_clipboard_layer(
+        layer: &ClipboardLayer,
+        page_width: f64,
+        page_height: f64,
+    ) -> Result<()> {
+        match layer {
+            ClipboardLayer::Group { children, .. } => {
+                for child in children {
+                    Self::validate_clipboard_layer(child, page_width, page_height)?;
+                }
+            }
+            ClipboardLayer::Raster {
+                image: Some(image), ..
+            } if image.metadata.width != Some(page_width.round() as u32)
+                || image.metadata.height != Some(page_height.round() as u32) =>
+            {
+                bail!("raster layers can only be pasted onto pages with matching dimensions");
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn paste_clipboard_layer(
+        snapshot: &Snapshot,
+        edit: &mut koharu_scene::Edit,
+        page: EntityId,
+        parent: Option<EntityId>,
+        layer: &ClipboardLayer,
+        offset: Point,
+    ) -> koharu_scene::Result<EntityId> {
+        let visibility = |visibility: LayerVisibility| SceneVisibility {
+            origin: Origin::User,
+            visible: visibility.visible,
+            opacity: visibility.opacity,
+        };
+        match layer {
+            ClipboardLayer::Group {
+                name,
+                visibility: layer_visibility,
+                children,
+                ..
+            } => {
+                let group = edit.add_entity(parent.unwrap_or(page), At::End)?;
+                edit.set(
+                    group,
+                    &SceneGroup {
+                        origin: Origin::User,
+                        name: name.clone(),
+                    },
+                )?;
+                edit.set(group, &visibility(*layer_visibility))?;
+                for child in children {
+                    Self::paste_clipboard_layer(snapshot, edit, page, Some(group), child, offset)?;
+                }
+                Ok(group)
+            }
+            ClipboardLayer::Text {
+                geometry,
+                visibility: layer_visibility,
+                content,
+                typography,
+                layout,
+                ..
+            } => {
+                if parent.is_some() {
+                    return Err(koharu_scene::Error::Invalid(
+                        "text layers must belong to the page text group".to_owned(),
+                    ));
+                }
+                let text_content = edit.add_text_content(page, At::End)?;
+                if let Some(source) = &content.source {
+                    edit.set(
+                        text_content,
+                        &SceneSourceText {
+                            text: Authored::user(source.text.clone()),
+                            language: source.language.as_deref().map(str::parse).transpose()?,
+                        },
+                    )?;
+                }
+                if let Some(translation) = &content.translation {
+                    edit.set(
+                        text_content,
+                        &SceneTranslation {
+                            text: Authored::user(translation.text.clone()),
+                            language: translation
+                                .language
+                                .as_deref()
+                                .map(str::parse)
+                                .transpose()?,
+                        },
+                    )?;
+                }
+                if let Some(role) = &content.role {
+                    edit.set(
+                        text_content,
+                        &SceneTextRole {
+                            origin: Origin::User,
+                            role: role.clone(),
+                        },
+                    )?;
+                }
+                let text_layer = edit.add_text_layer(
+                    page,
+                    At::End,
+                    text_content,
+                    &SceneTextLayout {
+                        origin: Origin::User,
+                        kind: *layout,
+                    },
+                )?;
+                if let Some(geometry) = geometry {
+                    edit.set(
+                        text_layer,
+                        &SceneGeometry {
+                            origin: Origin::User,
+                            points: geometry
+                                .points
+                                .iter()
+                                .map(|point| ScenePoint {
+                                    x: point.x + offset.x,
+                                    y: point.y + offset.y,
+                                })
+                                .collect(),
+                        },
+                    )?;
+                }
+                if let Some(typography) = typography {
+                    edit.set(
+                        text_layer,
+                        &SceneTypography {
+                            origin: Origin::User,
+                            preferred_font: typography.preferred_font.clone(),
+                            font_weight: typography.font_weight,
+                            font_style: typography.font_style,
+                            size: typography.size.filter(|size| *size > 0.0),
+                            auto_fit: typography.auto_fit,
+                            color: typography.color,
+                            stroke_color: typography.stroke_color,
+                            stroke_width: typography.stroke_width,
+                            alignment: typography.alignment,
+                            writing_mode: typography.writing_mode,
+                            extensions: Default::default(),
+                        },
+                    )?;
+                }
+                edit.set(text_layer, &visibility(*layer_visibility))?;
+                Ok(text_layer)
+            }
+            ClipboardLayer::Raster {
+                visibility: layer_visibility,
+                image,
+                name,
+                kind,
+                ..
+            } => {
+                let at = if parent.is_none() {
+                    snapshot
+                        .page(page)?
+                        .text_group()?
+                        .map_or(At::End, |group| At::Before(group.id()))
+                } else {
+                    At::End
+                };
+                let raster = edit.add_entity(parent.unwrap_or(page), at)?;
+                edit.set(
+                    raster,
+                    &SceneRasterLayer {
+                        origin: Origin::User,
+                        name: name.clone(),
+                        kind: *kind,
+                    },
+                )?;
+                edit.set(raster, &visibility(*layer_visibility))?;
+                if let Some(image) = image {
+                    edit.set_asset(
+                        raster,
+                        &AssetRole::new("source")?,
+                        AssetInput::new(
+                            image.bytes.clone(),
+                            image.media_type.clone(),
+                            image.metadata.clone(),
+                        ),
+                    )?;
+                }
+                Ok(raster)
+            }
+        }
     }
 
     fn text_content(snapshot: &Snapshot, layer: EntityId) -> Result<EntityId> {
@@ -1387,7 +2000,9 @@ mod tests {
             .unwrap();
         project.commit(manual).await.unwrap();
 
-        let commit = project.commit_rebased(pipeline).await.unwrap().unwrap();
+        let Rebased::Applied(commit) = project.commit_rebased(pipeline).await.unwrap() else {
+            panic!("a non-conflicting pipeline result must apply");
+        };
         assert_eq!(
             commit
                 .snapshot
@@ -1425,7 +2040,10 @@ mod tests {
             .unwrap();
         project.commit(manual).await.unwrap();
 
-        assert!(project.commit_rebased(pipeline).await.unwrap().is_none());
+        assert!(matches!(
+            project.commit_rebased(pipeline).await.unwrap(),
+            Rebased::Superseded
+        ));
         assert_eq!(
             project
                 .snapshot()
@@ -1475,5 +2093,162 @@ mod tests {
             &[ScenePoint { x: 2.0, y: 2.0 }],
         );
         assert_eq!(white.get_pixel(2, 2).0, [255, 255, 255, 255]);
+    }
+
+    #[tokio::test]
+    async fn changed_source_invalidates_generated_translation_but_keeps_manual_translation() {
+        let mut session = Session::memory().await.unwrap();
+        let mut setup = session.snapshot().edit();
+        let page = setup
+            .add_page(PageDraft::new("page", 100.0, 100.0), At::End)
+            .unwrap();
+        session.commit(setup.finish().unwrap()).await.unwrap();
+        let mut project = Project::new(session, "test".to_owned());
+        let (_, layer) = project
+            .add_point_text(page, Point { x: 10.0, y: 10.0 })
+            .await
+            .unwrap();
+        project
+            .set_source_text(layer, "original".into())
+            .await
+            .unwrap();
+        let content = Project::text_content(&project.snapshot(), layer).unwrap();
+        let generation =
+            Generation::new(ProducerId::new("dev.koharu.pipeline.translation").unwrap());
+        let mut translated = project.snapshot().edit_as(generation.clone());
+        translated
+            .set(
+                content,
+                &SceneTranslation {
+                    text: Authored::generated("generated".into(), generation),
+                    language: None,
+                },
+            )
+            .unwrap();
+        project.commit(translated.finish().unwrap()).await.unwrap();
+        project
+            .set_source_text(layer, "original".into())
+            .await
+            .unwrap();
+        assert_eq!(
+            project
+                .snapshot()
+                .component::<SceneTranslation>(content)
+                .unwrap()
+                .unwrap()
+                .text
+                .value,
+            "generated"
+        );
+        project
+            .set_source_text(layer, "corrected".into())
+            .await
+            .unwrap();
+        assert!(
+            project
+                .snapshot()
+                .component::<SceneTranslation>(content)
+                .unwrap()
+                .is_none()
+        );
+        project
+            .set_translation(layer, Some("manual".into()))
+            .await
+            .unwrap();
+        project
+            .set_source_text(layer, "another correction".into())
+            .await
+            .unwrap();
+        assert_eq!(
+            project
+                .snapshot()
+                .component::<SceneTranslation>(content)
+                .unwrap()
+                .unwrap()
+                .text
+                .value,
+            "manual"
+        );
+    }
+
+    #[tokio::test]
+    async fn pasted_text_keeps_its_content_and_is_offset_only_on_its_source_page() {
+        fn texts(project: &Project, page: EntityId) -> Vec<(EntityId, String, String, f64)> {
+            Project::page(&project.snapshot(), page)
+                .unwrap()
+                .layers
+                .into_iter()
+                .filter_map(|layer| match layer {
+                    Layer::Text {
+                        id,
+                        geometry,
+                        content,
+                        ..
+                    } => Some((
+                        id,
+                        content.source?.text,
+                        content.translation?.text,
+                        geometry?.points.first()?.x,
+                    )),
+                    _ => None,
+                })
+                .collect()
+        }
+
+        let mut session = Session::memory().await.unwrap();
+        let mut setup = session.snapshot().edit();
+        let first = setup
+            .add_page(PageDraft::new("first", 100.0, 100.0), At::End)
+            .unwrap();
+        let second = setup
+            .add_page(PageDraft::new("second", 100.0, 100.0), At::End)
+            .unwrap();
+        session.commit(setup.finish().unwrap()).await.unwrap();
+        let mut project = Project::new(session, "test".to_owned());
+        let (_, layer) = project
+            .add_point_text(first, Point { x: 10.0, y: 10.0 })
+            .await
+            .unwrap();
+        project
+            .set_source_text(layer, "source".into())
+            .await
+            .unwrap();
+        project
+            .set_translation(layer, Some("перевод".into()))
+            .await
+            .unwrap();
+        let [(_, _, _, original_x)] = texts(&project, first)[..] else {
+            panic!("the first page has one text layer");
+        };
+
+        let copied = project.copy_layers(vec![layer]).await.unwrap();
+        assert_eq!(copied.page, first);
+        project
+            .paste_layers(second, copied.clone(), Point { x: 0.0, y: 0.0 })
+            .await
+            .unwrap();
+        let [(pasted, ref source, ref translation, x)] = texts(&project, second)[..] else {
+            panic!("the second page received one text layer");
+        };
+        assert_ne!(pasted, layer);
+        assert_eq!(
+            (source.as_str(), translation.as_str()),
+            ("source", "перевод")
+        );
+        assert_eq!(x, original_x);
+
+        let before = project.snapshot().revision();
+        let (commit, _) = project
+            .paste_layers(first, copied, Point { x: 16.0, y: 16.0 })
+            .await
+            .unwrap();
+        assert_eq!(commit.changes.from, before, "a paste is one commit");
+        let pasted_on_source = texts(&project, first);
+        assert_eq!(pasted_on_source.len(), 2);
+        assert!(
+            pasted_on_source
+                .iter()
+                .any(|(_, _, _, x)| *x == original_x + 16.0)
+        );
     }
 }

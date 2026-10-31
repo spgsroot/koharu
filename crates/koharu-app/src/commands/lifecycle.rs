@@ -19,6 +19,7 @@ use super::{
         CurrentProject, Page, PageSummary, Project, ProjectInfo, ProjectLibrary, ProjectSummary,
     },
 };
+use crate::history::HistoryName;
 
 #[derive(Clone, Debug, Serialize, Type)]
 pub struct StartupState {
@@ -179,23 +180,25 @@ pub(crate) async fn subscribe(
     })
 }
 
-async fn replace_project(handle: &AppHandle<Cef>, opened: Project) -> Result<()> {
+pub(super) async fn replace_project(handle: &AppHandle<Cef>, opened: Project) -> Result<()> {
     let snapshot = opened.snapshot();
     let page = opened.active_page();
     let info = opened.info();
 
     handle.state::<AgentState>().reset().await;
-    let processing = handle.state::<Processing>();
-    for stop in processing.stops.lock().values() {
-        stop.stop();
-    }
-    processing.stops.lock().clear();
-    processing.jobs.lock().clear();
 
     let previous = {
         let current = handle.state::<CurrentProject>();
         let mut current = current.project.lock().await;
-        current.replace(opened)
+        for job in handle.state::<Processing>().reset() {
+            handle.state::<JobChannel>().channel.publish(job);
+        }
+        let previous = current.replace(opened);
+        // The freshly opened project may back an order: sync computed counters.
+        if let Some(project) = current.as_ref() {
+            super::orders::sync_progress(&handle.state::<super::orders::Orders>(), project);
+        }
+        previous
     };
 
     let desktop = handle.state::<Desktop>();
@@ -335,15 +338,12 @@ pub(crate) async fn delete_project(
 
 async fn close_current_project(handle: &AppHandle<Cef>) -> Result<()> {
     handle.state::<AgentState>().reset().await;
-    let processing = handle.state::<Processing>();
-    for stop in processing.stops.lock().values() {
-        stop.stop();
-    }
-    processing.stops.lock().clear();
-    processing.jobs.lock().clear();
     let previous = {
         let current = handle.state::<CurrentProject>();
         let mut current = current.project.lock().await;
+        for job in handle.state::<Processing>().reset() {
+            handle.state::<JobChannel>().channel.publish(job);
+        }
         current.take()
     };
     let desktop = handle.state::<Desktop>();
@@ -366,14 +366,8 @@ async fn close_current_project(handle: &AppHandle<Cef>) -> Result<()> {
 pub(crate) async fn import_pages(
     source: PageImportSource,
     window: WebviewWindow<Cef>,
-    desktop: State<'_, Desktop>,
-    project: State<'_, CurrentProject>,
-    processing: State<'_, Processing>,
-    canvas_channel: State<'_, CanvasChannel>,
+    handle: AppHandle<Cef>,
 ) -> std::result::Result<(), Error> {
-    if !processing.stops.lock().is_empty() {
-        return Err(anyhow::anyhow!("pages cannot be imported while processing is running").into());
-    }
     let extensions = import::Format::iter()
         .flat_map(|format| format.get_serializations())
         .collect::<Vec<_>>();
@@ -410,17 +404,50 @@ pub(crate) async fn import_pages(
     let Some(files) = files else {
         return Ok(());
     };
-    if files.is_empty() {
-        return Err(anyhow::anyhow!("no supported images were found in the selection").into());
-    }
-    let pages = tokio::task::spawn_blocking(move || import::import(files))
-        .await
-        .context("page import worker stopped unexpectedly")??;
-    let page_count = pages.len();
+    import_pages_from_paths(&handle, files).await?;
+    Ok(())
+}
 
-    let (commit, page) = {
-        let mut project = project.project.lock().await;
-        let project = project.as_mut().context("no project is open")?;
+pub(super) fn ensure_page_import_allowed(handle: &AppHandle<Cef>) -> Result<()> {
+    if !handle.state::<Processing>().stops.lock().is_empty() {
+        anyhow::bail!("pages cannot be imported while processing is running");
+    }
+    Ok(())
+}
+
+pub(super) async fn decode_import_paths(
+    files: Vec<std::path::PathBuf>,
+) -> Result<Vec<import::Page>> {
+    if files.is_empty() {
+        anyhow::bail!("no supported images were provided");
+    }
+    tokio::task::spawn_blocking(move || import::import(files))
+        .await
+        .context("page import worker stopped unexpectedly")?
+}
+
+pub(crate) async fn import_pages_from_paths(
+    handle: &AppHandle<Cef>,
+    files: Vec<std::path::PathBuf>,
+) -> Result<usize> {
+    ensure_page_import_allowed(handle)?;
+    let pages = decode_import_paths(files).await?;
+    import_decoded_pages(handle, pages).await
+}
+
+pub(super) async fn import_decoded_pages(
+    handle: &AppHandle<Cef>,
+    pages: Vec<import::Page>,
+) -> Result<usize> {
+    ensure_page_import_allowed(handle)?;
+    if pages.is_empty() {
+        anyhow::bail!("no supported images were provided");
+    }
+    let page_count = pages.len();
+    let (commit, page, info) = {
+        let current = handle.state::<CurrentProject>();
+        let mut current = current.project.lock().await;
+        let project = current.as_mut().context("no project is open")?;
         let source = AssetRole::new("source")?;
         let patch = project.snapshot().patch(|edit| {
             for imported in pages {
@@ -449,16 +476,19 @@ pub(crate) async fn import_pages(
             Ok(())
         })?;
         let commit = project.session.commit(patch).await?;
-        project.record(vec![commit.revision]);
+        project.record_named(HistoryName::ImportPages, None, None, &commit);
         project.reconcile_page();
-        let page = project.active_page();
-        (commit, page)
+        (commit, project.active_page(), project.info())
     };
+    let desktop = handle.state::<Desktop>();
     desktop.synchronize(&commit.snapshot, page, &commit).await?;
-    let canvas = desktop.canvas_state();
-    canvas_channel.channel.publish(canvas);
+    handle
+        .state::<CanvasChannel>()
+        .channel
+        .publish(desktop.canvas_state());
+    handle.state::<ProjectChannel>().channel.publish(Some(info));
     tracing::info!(target: "koharu_metrics", metric = "page_imported", page_count);
-    Ok(())
+    Ok(page_count)
 }
 
 #[tracing::instrument(

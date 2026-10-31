@@ -1,14 +1,23 @@
 use std::fmt;
 
 use anyhow::Result;
-use koharu_pipeline::PipelineConfig;
+use koharu_pipeline::{ManualInpaintingPreset, PipelineConfig, builtin_manual_inpainting_presets};
 use koharu_renderer::TypesettingConfig;
 use koharu_secrets::ExposeSecret as _;
-use koharu_translator::{Language, Model, Provider, ProviderConfig, ProvidersConfig};
+use koharu_translator::{
+    ContentProfile, Language, Model, Provider, ProviderConfig, ProvidersConfig,
+    default_system_prompt,
+};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use super::Error;
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, Type)]
+#[serde(default)]
+pub struct UiConfig {
+    pub orders: bool,
+}
 
 #[derive(Clone, Debug, Serialize, Type)]
 pub struct Preferences {
@@ -16,6 +25,17 @@ pub struct Preferences {
     pub providers: ProviderPreferences,
     pub typesetting: TypesettingConfig,
     pub languages: Vec<LanguageChoice>,
+    pub ui: UiConfig,
+    /// Built-in prompt templates shown when a profile has no saved prompt.
+    pub default_system_prompts: DefaultSystemPrompts,
+    pub default_manual_inpainting_presets: Vec<ManualInpaintingPreset>,
+}
+
+#[derive(Clone, Debug, Serialize, Type)]
+pub struct DefaultSystemPrompts {
+    pub hentai: String,
+    pub manga: String,
+    pub comic: String,
 }
 
 impl Preferences {
@@ -23,9 +43,11 @@ impl Preferences {
         let pipeline = PipelineConfig::load()?;
         let providers = ProvidersConfig::load()?;
         let typesetting = TypesettingConfig::load()?;
+        let ui = koharu_config::load::<UiConfig>("ui")?;
         let pipeline = pipeline.read()?;
         let providers = providers.read()?;
         let typesetting = typesetting.read()?;
+        let ui = ui.read()?;
         Ok(Self {
             pipeline: pipeline.clone(),
             providers: ProviderPreferences::from_config(&providers)?,
@@ -37,6 +59,13 @@ impl Preferences {
                     name: language.to_string(),
                 })
                 .collect(),
+            ui: ui.clone(),
+            default_system_prompts: DefaultSystemPrompts {
+                hentai: default_system_prompt(ContentProfile::Hentai),
+                manga: default_system_prompt(ContentProfile::Manga),
+                comic: default_system_prompt(ContentProfile::Comic),
+            },
+            default_manual_inpainting_presets: builtin_manual_inpainting_presets(),
         })
     }
 }
@@ -157,11 +186,11 @@ pub struct LanguageChoice {
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn save_preferences(
-    mut pipeline: PipelineConfig,
+    pipeline: PipelineConfig,
     providers: ProviderPreferences,
     typesetting: TypesettingConfig,
 ) -> std::result::Result<Preferences, Error> {
-    remember_pipeline_profiles(&mut pipeline);
+    pipeline.validate()?;
     let providers = providers.into_config()?;
     let pipeline_config = PipelineConfig::load()?;
     let providers_config = ProvidersConfig::load()?;
@@ -188,17 +217,6 @@ pub(crate) async fn save_preferences(
         setting = "application",
     );
     Ok(preferences)
-}
-
-fn remember_pipeline_profiles(config: &mut PipelineConfig) {
-    let koharu_pipeline::DetectionModel::KoharuLayoutRFDetrSeg2XL(settings) = &config.detection;
-    config.processor.koharu_layout_rfdetr_seg_2xl = Some(settings.clone());
-    if let koharu_pipeline::InpaintingModel::Flux2Klein(settings) = &config.inpainting {
-        config.processor.flux2_klein = Some(settings.clone());
-    }
-    if let koharu_pipeline::InpaintingModel::RoremMixed(settings) = &config.inpainting {
-        config.processor.rorem_mixed = Some(settings.clone());
-    }
 }
 
 #[tauri::command]

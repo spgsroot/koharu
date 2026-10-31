@@ -6,13 +6,18 @@ use hayro::hayro_syntax::Pdf;
 use hayro::vello_cpu::color::palette::css::WHITE;
 use hayro::{RenderCache, RenderSettings, render as render_page};
 
-use super::EncodedPage;
+use super::{EncodedPage, MAX_PAGES};
 
 // PDF coordinates are points at 72 per inch. Four and one sixth points-to-pixels
 // therefore gives 300 DPI, retaining fine manga lettering and line art. A typical
 // A4 page is about 33 MiB as RGBA pixels at this scale, and rendering one page at
 // a time releases that working buffer before the next page is processed.
 const PDF_SCALE: f32 = 300.0 / 72.0;
+
+// Rendered rasters obey the same edge cap as decoded rasters; a hostile
+// MediaBox otherwise sizes the render pixmap with untrusted dimensions.
+const MAX_RENDER_EDGE: f32 = super::MAX_IMAGE_EDGE as f32;
+const MAX_RENDER_PIXELS: f32 = MAX_RENDER_EDGE * MAX_RENDER_EDGE;
 
 pub(super) fn render(path: &Path) -> Result<Vec<EncodedPage>> {
     let data = fs::read(path).with_context(|| format!("failed to read PDF {}", path.display()))?;
@@ -23,6 +28,12 @@ pub(super) fn render(path: &Path) -> Result<Vec<EncodedPage>> {
 
     if page_count == 0 {
         bail!("PDF {} contains no pages", path.display());
+    }
+    if page_count > MAX_PAGES {
+        bail!(
+            "PDF {} contains {page_count} pages, above the {MAX_PAGES}-page import limit",
+            path.display()
+        );
     }
 
     let stem = path
@@ -45,6 +56,19 @@ pub(super) fn render(path: &Path) -> Result<Vec<EncodedPage>> {
         .enumerate()
         .map(|(index, page)| {
             let page_number = index + 1;
+            let (width, height) = page.render_dimensions();
+            let (pixel_width, pixel_height) = (width * PDF_SCALE, height * PDF_SCALE);
+            if !pixel_width.is_finite()
+                || !pixel_height.is_finite()
+                || pixel_width > MAX_RENDER_EDGE
+                || pixel_height > MAX_RENDER_EDGE
+                || pixel_width * pixel_height > MAX_RENDER_PIXELS
+            {
+                bail!(
+                    "PDF page {page_number} of {} renders to {pixel_width:.0}x{pixel_height:.0} px, above the {MAX_RENDER_EDGE:.0}px edge limit",
+                    path.display()
+                );
+            }
             let bytes = render_page(page, &cache, &interpreter_settings, &render_settings)
                 .into_png()
                 .with_context(|| {
@@ -76,13 +100,14 @@ mod tests {
 
     use super::*;
 
-    fn single_page_pdf() -> Vec<u8> {
+    fn single_page_pdf(media_box_width: u32, media_box_height: u32) -> Vec<u8> {
         let content = b"0 0 0 rg\n0 0 72 72 re f\n";
         let objects = [
             "<< /Type /Catalog /Pages 2 0 R >>".to_owned(),
             "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_owned(),
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 72 72] /Resources << >> /Contents 4 0 R >>"
-                .to_owned(),
+            format!(
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {media_box_width} {media_box_height}] /Resources << >> /Contents 4 0 R >>"
+            ),
             format!(
                 "<< /Length {} >>\nstream\n{}endstream",
                 content.len(),
@@ -110,17 +135,21 @@ mod tests {
         pdf
     }
 
-    #[test]
-    fn renders_pdf_pages_as_300_dpi_pngs() {
+    fn fixture_path(suffix: &str) -> std::path::PathBuf {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock after epoch")
             .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "koharu-import-pdf-{}-{timestamp}.pdf",
+        std::env::temp_dir().join(format!(
+            "koharu-import-pdf-{}-{timestamp}.{suffix}",
             std::process::id()
-        ));
-        fs::write(&path, single_page_pdf()).expect("write PDF fixture");
+        ))
+    }
+
+    #[test]
+    fn renders_pdf_pages_as_300_dpi_pngs() {
+        let path = fixture_path("pdf");
+        fs::write(&path, single_page_pdf(72, 72)).expect("write PDF fixture");
         let pages = render(&path).expect("render PDF");
         fs::remove_file(&path).expect("remove PDF fixture");
 
@@ -129,5 +158,15 @@ mod tests {
         let image = image::load_from_memory_with_format(&pages[0].bytes, image::ImageFormat::Png)
             .expect("decode rendered page");
         assert_eq!(image.dimensions(), (300, 300));
+    }
+
+    #[test]
+    fn rejects_page_rendering_beyond_the_raster_limit() {
+        // 4000 points at 300 DPI is past the 16384px edge limit.
+        let path = fixture_path("pdf");
+        fs::write(&path, single_page_pdf(4000, 4000)).expect("write PDF fixture");
+        let error = render(&path).expect_err("oversized page should be rejected");
+        fs::remove_file(&path).expect("remove PDF fixture");
+        assert!(error.to_string().contains("edge limit"));
     }
 }

@@ -33,6 +33,9 @@ use tokio::sync::watch;
 
 const CONFIG_DIRECTORY: &str = ".koharu";
 const CONFIG_FILE: &str = "config.toml";
+/// Relocates the configuration directory (and the journals kept beside
+/// `config.toml`) for portable installs and isolated profiles.
+pub const CONFIG_DIR_ENV: &str = "KOHARU_CONFIG_DIR";
 
 static MANAGER: OnceLock<Result<Arc<Manager>, String>> = OnceLock::new();
 
@@ -370,8 +373,18 @@ impl Manager {
     }
 }
 
-/// Returns the shared Koharu configuration path: `~/.koharu/config.toml`.
+/// Returns the shared Koharu configuration path: `~/.koharu/config.toml`, or
+/// `config.toml` inside [`CONFIG_DIR_ENV`] when that variable is set.
 pub fn path() -> Result<PathBuf> {
+    if let Some(directory) = std::env::var_os(CONFIG_DIR_ENV).filter(|value| !value.is_empty()) {
+        let directory = PathBuf::from(directory);
+        anyhow::ensure!(
+            directory.is_absolute(),
+            "{CONFIG_DIR_ENV} must be an absolute path: {}",
+            directory.display()
+        );
+        return Ok(directory.join(CONFIG_FILE));
+    }
     let home = dirs::home_dir().context("could not determine the home directory")?;
     Ok(home.join(CONFIG_DIRECTORY).join(CONFIG_FILE))
 }

@@ -3,7 +3,7 @@ mod host;
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Context as _, Result, anyhow};
-use koharu_agent::{Account, Agent, Codex, CodexModel, Config, Control, Event, LoginEvent, RunId};
+use koharu_agent::{Account, Agent, CodexModel, Config, Control, Event, LoginEvent, RunId};
 use parking_lot::Mutex;
 use serde::Serialize;
 use specta::Type;
@@ -31,7 +31,7 @@ pub(crate) struct AgentState {
 impl AgentState {
     pub(crate) fn new(handle: AppHandle<Cef>) -> Result<Self> {
         Ok(Self {
-            agent: Arc::new(Agent::new(Codex::new()?, KoharuHost::new(handle))?),
+            agent: Arc::new(Agent::new(KoharuHost::new(handle))?),
             runs: Mutex::new(HashMap::new()),
             login: Mutex::new(None),
             idle: Notify::new(),
@@ -39,9 +39,19 @@ impl AgentState {
     }
 
     async fn status(&self) -> Result<AgentStatus> {
-        let account = self.agent.codex().account()?;
+        let mut account = self.agent.account()?;
         let models = if account.is_some() {
-            self.agent.models().await?
+            match self.agent.models().await {
+                Ok(models) => models,
+                Err(error) => {
+                    account = self.agent.account()?;
+                    if account.is_some() {
+                        return Err(error);
+                    }
+                    self.agent.clear().await;
+                    Vec::new()
+                }
+            }
         } else {
             Vec::new()
         };
@@ -110,7 +120,6 @@ pub(crate) async fn login_agent(
     }
     let result = state
         .agent
-        .codex()
         .login_device(&control, |event| {
             if let LoginEvent::DeviceCode {
                 verification_url, ..
@@ -140,7 +149,7 @@ pub(crate) async fn logout_agent(
     state: State<'_, AgentState>,
 ) -> std::result::Result<AgentStatus, Error> {
     state.reset().await;
-    state.agent.codex().logout()?;
+    state.agent.logout()?;
     Ok(state.status().await?)
 }
 
@@ -156,7 +165,11 @@ pub(crate) async fn save_agent_config(
     config: Config,
     state: State<'_, AgentState>,
 ) -> std::result::Result<Config, Error> {
+    let previous = state.agent.config()?;
     let config = state.agent.save_config(config)?;
+    if previous.provider != config.provider {
+        state.agent.clear().await;
+    }
     tracing::info!(
         target: "koharu_metrics",
         metric = "preference_changed",
@@ -177,8 +190,8 @@ pub(crate) async fn run_agent(
     if prompt.is_empty() {
         return Err(anyhow!("message cannot be empty").into());
     }
-    if state.agent.codex().account()?.is_none() {
-        return Err(anyhow!("Codex is not signed in").into());
+    if state.agent.account()?.is_none() {
+        return Err(anyhow!("the selected agent is not signed in").into());
     }
     let run = RunId::new();
     let control = Control::default();

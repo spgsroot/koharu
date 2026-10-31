@@ -5,8 +5,10 @@ use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use koharu_agent::{Control, Host, Invocation, Tool, ToolCall};
 use koharu_desktop::{Desktop, Frame};
-use koharu_pipeline::{Committer, Operation, RunStatus, Scope, Stage, StageOutput, StopToken};
-use koharu_scene::{Commit, EntityId, Snapshot};
+use koharu_pipeline::{
+    Committed, Committer, Operation, RunStatus, Scope, Stage, StageOutput, StopToken,
+};
+use koharu_scene::{Commit, EntityId};
 use schemars::{JsonSchema, schema_for};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -16,11 +18,13 @@ use crate::commands::{
     ChannelExt as _,
     canvas::{CanvasChannel, Point},
     editing::{GeometryUpdate, TypographyUpdate},
+    lifecycle::ProjectChannel,
     output,
     preferences::Preferences,
-    processing::{JobId, Processing},
-    project::{CurrentProject, Project, Typography},
+    processing::{Job, JobId, JobKind, JobState, Processing},
+    project::{CurrentProject, Project, Rebased, Typography},
 };
+use crate::history::HistoryName;
 
 #[derive(Clone)]
 pub(super) struct KoharuHost {
@@ -33,7 +37,7 @@ impl KoharuHost {
     }
 
     async fn project_context(&self) -> Result<Value> {
-        let (project, pages) = {
+        let (project_id, project, pages) = {
             let current = self.handle.state::<CurrentProject>();
             let current = current.project.lock().await;
             let project = current.as_ref().context("no project is open")?;
@@ -42,7 +46,7 @@ impl KoharuHost {
                 .into_iter()
                 .map(|page| Project::page(&snapshot, page.id))
                 .collect::<Result<Vec<_>>>()?;
-            (project.info(), pages)
+            (snapshot.project_id(), project.info(), pages)
         };
         let preferences = Preferences::load()?;
         let fonts = self
@@ -67,6 +71,7 @@ impl KoharuHost {
             })
             .collect::<Vec<_>>();
         Ok(json!({
+            "project_id": project_id,
             "project": project,
             "pages": pages,
             "configuration": {
@@ -80,6 +85,8 @@ impl KoharuHost {
 
     async fn mutate<T>(
         &self,
+        name: HistoryName,
+        merge: Option<EntityId>,
         mutation: impl for<'project> FnOnce(
             &'project mut Project,
         ) -> Pin<
@@ -94,12 +101,16 @@ impl KoharuHost {
             let mut current = current.project.lock().await;
             let project = current.as_mut().context("no project is open")?;
             let (commit, value) = mutation(project).await?;
-            project.record_commit(&commit);
+            project.record_named(name, None, merge, &commit);
             project.reconcile_page();
             (commit, value, project.active_page(), project.info())
         };
         let revision = commit.revision;
         self.synchronize(commit, page).await?;
+        self.handle
+            .state::<ProjectChannel>()
+            .channel
+            .publish(Some(project.clone()));
         Invocation::changed(json!({
             "revision": revision,
             "project": project,
@@ -118,25 +129,33 @@ impl KoharuHost {
     async fn run_pipeline(&self, arguments: RunPipeline, control: &Control) -> Result<Invocation> {
         let scope = arguments.scope()?;
         let operation = arguments.operation.into();
-        let snapshot = self
-            .handle
-            .state::<CurrentProject>()
-            .project
-            .lock()
-            .await
-            .as_ref()
-            .context("no project is open")?
-            .snapshot();
+        let processing = self.handle.state::<Processing>();
         let job = JobId::new();
         let stop = StopToken::default();
-        {
-            let processing = self.handle.state::<Processing>();
-            let mut stops = processing.stops.lock();
-            if !stops.is_empty() {
-                bail!("another pipeline process is already running");
-            }
-            stops.insert(job, stop.clone());
-        }
+        let (snapshot, session) = {
+            let current = self.handle.state::<CurrentProject>();
+            let current = current.project.lock().await;
+            let snapshot = current.as_ref().context("no project is open")?.snapshot();
+            // Registered under the project lock so a project switch cannot
+            // slip between reading the scene and claiming the pipeline slot.
+            let session = processing.enqueue(
+                &Job {
+                    id: job,
+                    kind: JobKind::Pipeline,
+                    state: JobState::Running,
+                    completed: 0,
+                    total: 0,
+                    page: None,
+                    stage: None,
+                    model: None,
+                    policy_rejected_pages: Vec::new(),
+                    error: None,
+                },
+                stop.clone(),
+                None,
+            )?;
+            (snapshot, session)
+        };
 
         let watcher = tauri::async_runtime::spawn({
             let control = control.clone();
@@ -153,6 +172,7 @@ impl KoharuHost {
             stop,
             progress: None,
             inpainting_mask: None,
+            translation: None,
         };
         let result = self
             .handle
@@ -160,7 +180,11 @@ impl KoharuHost {
             .execute(snapshot, request, &mut committer)
             .await;
         watcher.abort();
-        self.handle.state::<Processing>().stops.lock().remove(&job);
+        let (stopped, error) = match &result {
+            Ok(report) => (report.status == RunStatus::Stopped, None),
+            Err(error) => (false, Some(format!("{error:#}"))),
+        };
+        processing.finish(job, session, stopped, error);
         let report = result.map_err(|error| anyhow!(error))?;
         if report.status == RunStatus::Stopped {
             bail!("pipeline processing was cancelled");
@@ -267,7 +291,7 @@ impl Host for KoharuHost {
             "rename_page" => {
                 let arguments: RenamePage = arguments(&call)?;
                 let page = entity(&arguments.page)?;
-                self.mutate(|project| {
+                self.mutate(HistoryName::RenamePage, None, |project| {
                     Box::pin(async move {
                         Ok((
                             project.rename_page(page, arguments.label).await?,
@@ -280,7 +304,7 @@ impl Host for KoharuHost {
             "move_page" => {
                 let arguments: MovePage = arguments(&call)?;
                 let page = entity(&arguments.page)?;
-                self.mutate(|project| {
+                self.mutate(HistoryName::MovePage, None, |project| {
                     Box::pin(async move {
                         Ok((
                             project.move_page(page, arguments.index).await?,
@@ -293,7 +317,7 @@ impl Host for KoharuHost {
             "delete_pages" => {
                 let arguments: DeletePages = arguments(&call)?;
                 let pages = entities(&arguments.pages)?;
-                self.mutate(|project| {
+                self.mutate(HistoryName::DeletePages, None, |project| {
                     Box::pin(async move {
                         Ok((
                             project.delete_pages(pages.clone()).await?,
@@ -313,7 +337,7 @@ impl Host for KoharuHost {
                     height: arguments.height,
                     angle_degrees: arguments.angle_degrees,
                 };
-                self.mutate(|project| {
+                self.mutate(HistoryName::AddText, None, |project| {
                     Box::pin(async move {
                         let (commit, element) = project.add_text_box(page, frame).await?;
                         Ok((commit, json!({ "page": page, "element": element })))
@@ -324,7 +348,7 @@ impl Host for KoharuHost {
             "set_source_text" => {
                 let arguments: SetText = arguments(&call)?;
                 let element = entity(&arguments.element)?;
-                self.mutate(|project| {
+                self.mutate(HistoryName::SourceText, Some(element), |project| {
                     Box::pin(async move {
                         Ok((
                             project.set_source_text(element, arguments.text).await?,
@@ -337,7 +361,7 @@ impl Host for KoharuHost {
             "set_translation" => {
                 let arguments: SetTranslation = arguments(&call)?;
                 let element = entity(&arguments.element)?;
-                self.mutate(|project| {
+                self.mutate(HistoryName::Translation, Some(element), |project| {
                     Box::pin(async move {
                         Ok((
                             project.set_translation(element, arguments.text).await?,
@@ -362,7 +386,7 @@ impl Host for KoharuHost {
                     alignment: arguments.alignment.map(Into::into),
                     writing_mode: arguments.writing_mode.map(Into::into),
                 };
-                self.mutate(|project| {
+                self.mutate(HistoryName::Typography, Some(element), |project| {
                     Box::pin(async move {
                         Ok((
                             project
@@ -388,7 +412,7 @@ impl Host for KoharuHost {
                         y: point.y,
                     })
                     .collect();
-                self.mutate(|project| {
+                self.mutate(HistoryName::Geometry, Some(element), |project| {
                     Box::pin(async move {
                         Ok((
                             project
@@ -406,7 +430,14 @@ impl Host for KoharuHost {
             "set_visibility" => {
                 let arguments: SetVisibility = arguments(&call)?;
                 let elements = entities(&arguments.elements)?;
-                self.mutate(|project| {
+                let name = if arguments.visible.is_some() {
+                    HistoryName::ToggleLayer
+                } else {
+                    HistoryName::Opacity
+                };
+                let merge =
+                    (arguments.opacity.is_some() && elements.len() == 1).then(|| elements[0]);
+                self.mutate(name, merge, |project| {
                     Box::pin(async move {
                         Ok((
                             project
@@ -425,7 +456,7 @@ impl Host for KoharuHost {
             "delete_elements" => {
                 let arguments: DeleteElements = arguments(&call)?;
                 let elements = entities(&arguments.elements)?;
-                self.mutate(|project| {
+                self.mutate(HistoryName::DeleteLayers, None, |project| {
                     Box::pin(async move {
                         Ok((
                             project.delete_layers(elements.clone()).await?,
@@ -439,7 +470,7 @@ impl Host for KoharuHost {
                 let arguments: MoveElement = arguments(&call)?;
                 let element = entity(&arguments.element)?;
                 let parent = entity(&arguments.parent)?;
-                self.mutate(|project| {
+                self.mutate(HistoryName::MoveLayer, None, |project| {
                     Box::pin(async move {
                         Ok((
                             project.move_layer(element, parent, arguments.index).await?,
@@ -461,20 +492,33 @@ struct AgentCommitter {
 
 #[async_trait]
 impl Committer for AgentCommitter {
-    async fn commit(&mut self, output: StageOutput) -> Result<Snapshot> {
-        let (commit, page) = {
+    async fn commit(&mut self, output: StageOutput) -> Result<Committed> {
+        let stage = output.stage;
+        let (commit, page, info) = {
             let current = self.host.handle.state::<CurrentProject>();
             let mut current = current.project.lock().await;
             let project = current.as_mut().context("no project is open")?;
-            let Some(commit) = project.commit_rebased(output.patch).await? else {
-                return Ok(project.snapshot());
+            let commit = match project.commit_rebased(output.patch).await? {
+                Rebased::Applied(commit) => commit,
+                Rebased::Unchanged => return Ok(Committed::Unchanged(project.snapshot())),
+                Rebased::Superseded => return Ok(Committed::Superseded(project.snapshot())),
             };
-            project.record_commit(&commit);
-            (commit, project.active_page())
+            project.record_named(
+                HistoryName::PipelineStage,
+                Some(stage.to_string()),
+                None,
+                &commit,
+            );
+            (commit, project.active_page(), project.info())
         };
         let snapshot = commit.snapshot.clone();
         self.host.synchronize(commit, page).await?;
-        Ok(snapshot)
+        self.host
+            .handle
+            .state::<ProjectChannel>()
+            .channel
+            .publish(Some(info));
+        Ok(Committed::Applied(snapshot))
     }
 }
 
@@ -655,6 +699,8 @@ enum AgentPipelineOperation {
     Detection,
     Ocr,
     Translation,
+    CensorDetection,
+    Decensor,
     Inpainting,
 }
 
@@ -668,6 +714,12 @@ impl From<AgentPipelineOperation> for Operation {
             AgentPipelineOperation::Ocr => Self::Only { stage: Stage::Ocr },
             AgentPipelineOperation::Translation => Self::Only {
                 stage: Stage::Translation,
+            },
+            AgentPipelineOperation::CensorDetection => Self::Only {
+                stage: Stage::CensorDetection,
+            },
+            AgentPipelineOperation::Decensor => Self::Only {
+                stage: Stage::Decensor,
             },
             AgentPipelineOperation::Inpainting => Self::Only {
                 stage: Stage::Inpainting,

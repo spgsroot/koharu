@@ -20,14 +20,14 @@ clap = { workspace = true }
 console = { workspace = true }
 koharu-app = { workspace = true }
 koharu-metrics = { workspace = true }
+koharu-runtime = { workspace = true }
+koharu-usage = { workspace = true }
 log = { workspace = true }
 rfd = { workspace = true }
 sentry = { workspace = true }
 serde_json = { workspace = true }
 tauri = { workspace = true }
 tauri-plugin-opener = { workspace = true }
-tauri-plugin-process = { workspace = true }
-tauri-plugin-updater = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -43,6 +43,4 @@ ignored = [
     "serde_json",
     "tauri-build",
     "tauri-plugin-opener",
-    "tauri-plugin-process",
-    "tauri-plugin-updater",
 ]

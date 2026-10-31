@@ -2,7 +2,7 @@ use std::{fs::File, io::Read, path::Path};
 
 use anyhow::{Context as _, Result, bail};
 
-use super::{EncodedPage, Format};
+use super::{EncodedPage, Format, MAX_PAGES, MAX_TOTAL_BYTES};
 
 pub(super) fn extract(path: &Path) -> Result<Vec<EncodedPage>> {
     let file = File::open(path)
@@ -10,8 +10,10 @@ pub(super) fn extract(path: &Path) -> Result<Vec<EncodedPage>> {
     let mut archive = ::zip::ZipArchive::new(file)
         .with_context(|| format!("failed to read ZIP/CBZ container {}", path.display()))?;
     let mut images = Vec::new();
+    let member_count = archive.len();
+    let mut total: u64 = 0;
 
-    for index in 0..archive.len() {
+    for index in 0..member_count {
         let mut member = archive.by_index(index).with_context(|| {
             format!(
                 "failed to read member {index} from ZIP/CBZ container {}",
@@ -45,13 +47,34 @@ pub(super) fn extract(path: &Path) -> Result<Vec<EncodedPage>> {
         if !supported || metadata {
             continue;
         }
-        let mut bytes = Vec::new();
-        member.read_to_end(&mut bytes).with_context(|| {
-            format!(
-                "failed to read image member {name:?} from ZIP/CBZ container {}",
+        if images.len() >= MAX_PAGES {
+            bail!(
+                "ZIP/CBZ container {} contains more than {MAX_PAGES} image pages",
                 path.display()
-            )
-        })?;
+            );
+        }
+        // Bounded take guards against decompression bombs: each member may
+        // consume at most the remaining 512 MiB budget, no matter what its
+        // header declares.
+        let limit = MAX_TOTAL_BYTES - total;
+        let mut bytes = Vec::new();
+        member
+            .by_ref()
+            .take(limit + 1)
+            .read_to_end(&mut bytes)
+            .with_context(|| {
+                format!(
+                    "failed to read image member {name:?} from ZIP/CBZ container {}",
+                    path.display()
+                )
+            })?;
+        if bytes.len() as u64 > limit {
+            bail!(
+                "ZIP/CBZ container {} exceeds the {MAX_TOTAL_BYTES}-byte decompressed import limit at member {name:?}",
+                path.display()
+            );
+        }
+        total += bytes.len() as u64;
         images.push(EncodedPage { name, bytes });
     }
 
@@ -87,12 +110,16 @@ mod tests {
     }
 
     fn archive_path(suffix: &str) -> PathBuf {
+        // Parallel tests share the process id, and the wall clock is too coarse
+        // on Windows to keep their archives apart.
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let index = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock after epoch")
             .as_nanos();
         std::env::temp_dir().join(format!(
-            "koharu-import-{}-{timestamp}.{suffix}",
+            "koharu-import-{}-{timestamp}-{index}.{suffix}",
             std::process::id()
         ))
     }
@@ -136,5 +163,45 @@ mod tests {
         let error = extract(&path).expect_err("archive should be rejected");
         std::fs::remove_file(&path).expect("remove archive");
         assert!(error.to_string().contains("no supported raster images"));
+    }
+
+    #[test]
+    fn rejects_more_pages_than_the_import_limit() {
+        let png = sample_png();
+        let path = archive_path("cbz");
+        let file = File::create(&path).expect("create archive");
+        let mut archive = ::zip::ZipWriter::new(file);
+        let options = ::zip::write::SimpleFileOptions::default();
+        for index in 0..MAX_PAGES + 1 {
+            archive
+                .start_file(format!("page{index:04}.png"), options)
+                .expect("start member");
+            archive.write_all(&png).expect("write member");
+        }
+        archive.finish().expect("finish archive");
+
+        let error = extract(&path).expect_err("archive should be rejected");
+        std::fs::remove_file(&path).expect("remove archive");
+        assert!(error.to_string().contains("image pages"));
+    }
+
+    #[test]
+    fn rejects_member_beyond_the_decompressed_byte_limit() {
+        let path = archive_path("cbz");
+        let file = File::create(&path).expect("create archive");
+        let mut archive = ::zip::ZipWriter::new(file);
+        let options = ::zip::write::SimpleFileOptions::default()
+            .compression_method(::zip::CompressionMethod::Deflated)
+            .compression_level(Some(1));
+        archive
+            .start_file("page.png", options)
+            .expect("start member");
+        let mut zeros = std::io::repeat(0).take(MAX_TOTAL_BYTES + 1);
+        std::io::copy(&mut zeros, &mut archive).expect("write member");
+        archive.finish().expect("finish archive");
+
+        let error = extract(&path).expect_err("archive should be rejected");
+        std::fs::remove_file(&path).expect("remove archive");
+        assert!(error.to_string().contains("decompressed import limit"));
     }
 }
