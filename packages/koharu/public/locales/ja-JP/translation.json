@@ -6,19 +6,26 @@
     "version": "バージョン"
   },
   "activity": {
+    "queued": "待機中",
     "dismiss": "閉じる",
     "downloadFailed": "ダウンロードに失敗しました。",
     "downloadingFiles": "{{count}}件のファイルをダウンロード中",
     "downloadingFiles_one": "{{count}}件のファイルをダウンロード中",
     "downloadingFiles_other": "{{count}}件のファイルをダウンロード中",
+    "importApply": "適用",
+    "importDiscard": "破棄",
+    "importIssues": "エラー {{errors}} 件 · 警告 {{warnings}} 件",
     "modelDownload": "モデルのダウンロード",
     "processing": "処理中",
+    "pageLabel": "{{number}}ページ目: {{label}}",
     "processingFailed": "処理に失敗しました。",
     "stop": "停止",
     "title": "アクティビティ"
   },
   "agent": {
     "account": "ChatGPTアカウント",
+    "accountGrok": "xAIアカウント",
+    "accountKimi": "Kimi Code アカウント",
     "applying": "プロジェクトの変更を適用中…",
     "automatic": "自動",
     "cancel": "キャンセル",
@@ -31,8 +38,11 @@
     "loading": "Codexを読み込み中…",
     "message": "Koharuエージェントにメッセージを送信",
     "model": "Codexモデル",
+    "modelGrok": "Grokモデル",
+    "modelKimi": "Kimi モデル",
     "placeholder": "Koharuにこのプロジェクトの作業を依頼…",
     "properties": "プロパティ",
+    "provider": "プロバイダー",
     "reasoning": "推論",
     "reasoningLevels": {
       "high": "高",
@@ -45,7 +55,13 @@
     "send": "送信",
     "signIn": "Codexでサインイン",
     "signInDescription": "ChatGPTサブスクリプションでサインインします。Koharuはデバイスコード認証を使用し、APIキーを求めることはありません。",
+    "signInDescriptionGrok": "xAIアカウントでサインインします。Koharuはデバイスコード認証を使用し、APIキーを求めることはありません。",
+    "signInDescriptionKimi": "Kimi Code のサブスクリプションでサインインします。Koharu はデバイスコード認証を使用し、API キーは求めません。",
+    "signInGrok": "Grokでサインイン",
+    "signInKimi": "Kimi でサインイン",
     "signInTitle": "Codexに接続",
+    "signInTitleGrok": "Grokに接続",
+    "signInTitleKimi": "Kimi に接続",
     "signOut": "サインアウト",
     "signingIn": "サインインを待機中…",
     "thinking": "思考中…",
@@ -53,8 +69,10 @@
     "working": "作業中…"
   },
   "canvas": {
+    "censorMask": "検閲マスク",
     "empty": "ページを選択して開始します。",
     "fit": "ウィンドウに合わせる",
+    "noCensorMask": "検閲検出を実行してマスクを表示",
     "surface": "Koharu キャンバス",
     "unavailable": "WebGPU キャンバスを利用できません"
   },
@@ -121,6 +139,41 @@
       "system": "システム"
     },
     "style": "スタイル"
+  },
+  "history": {
+    "title": "履歴",
+    "clear": "履歴を消去",
+    "clearConfirmTitle": "履歴を消去しますか?",
+    "clearConfirmDescription": "取り消し・やり直しのすべての状態が削除されます。ドキュメント自体は変更されません。",
+    "clearConfirmAction": "消去",
+    "snapshot": "スナップショットを作成",
+    "snapshots": "スナップショット",
+    "restore": "復元",
+    "deleteSnapshot": "スナップショットを削除",
+    "empty": "記録された操作はまだありません。",
+    "state": {
+      "open": "開く",
+      "import_pages": "ページの読み込み",
+      "import_translations": "翻訳のインポート",
+      "rename_page": "ページ名の変更",
+      "delete_pages": "ページの削除",
+      "move_page": "ページの移動",
+      "add_text": "テキストの追加",
+      "source_text": "原文テキスト",
+      "translation": "翻訳",
+      "typography": "タイポグラフィ",
+      "geometry": "ジオメトリ",
+      "transform": "変形",
+      "toggle_layer": "レイヤーの表示切替",
+      "opacity": "不透明度",
+      "delete_layers": "レイヤーの削除",
+      "paste_layers": "レイヤーの貼り付け",
+      "move_layer": "レイヤーの移動",
+      "brush": "ブラシツール",
+      "erase": "消しゴム",
+      "snapshot_restore": "スナップショットの復元",
+      "pipeline_stage": "処理"
+    }
   },
   "inference": {
     "currentPage": "現在のページ",
@@ -243,6 +296,9 @@
     "about": "Koharuについて",
     "closeProject": "プロジェクトを閉じる",
     "delete": "選択項目を削除",
+    "copy": "コピー",
+    "cut": "切り取り",
+    "paste": "貼り付け",
     "discord": "Discord",
     "edit": "編集",
     "exportPng": "PNGを書き出す…",
@@ -267,6 +323,7 @@
     "baseUrl": "ベース URL",
     "default": "既定",
     "instructions": "翻訳指示",
+    "sourceLanguage": "原文の言語",
     "targetLanguage": "対象言語"
   },
   "modelPicker": {
@@ -297,21 +354,301 @@
     "pages": "ページ",
     "rename": "名前を変更",
     "renameDescription": "このページの新しい名前を入力します。",
-    "renameTitle": "ページ名を変更"
+    "renameTitle": "ページ名を変更",
+    "selected": "{{count}}件選択中"
+  },
+  "orders": {
+    "workspace": {
+      "orders": "注文",
+      "editor": "エディター",
+      "projects": "すべてのプロジェクト"
+    },
+    "breadcrumb": {
+      "order": "注文 {{number}}"
+    },
+    "header": {
+      "searchPlaceholder": "番号、タイトル、クライアントで検索…",
+      "filters": "フィルター",
+      "createOrder": "注文を作成"
+    },
+    "summary": {
+      "overdue": "期限切れ",
+      "due_today": "今日が期限",
+      "blocked": "ブロック中",
+      "ready": "納品可能"
+    },
+    "views": {
+      "label": "保存したビュー",
+      "attention": "要注意",
+      "mine": "自分のもの",
+      "today": "今日",
+      "all": "すべて"
+    },
+    "filters": {
+      "lifecycle": "ステータス",
+      "stage": "ステージ",
+      "anyStage": "すべてのステージ",
+      "assignee": "担当者",
+      "client": "クライアント",
+      "needsAttention": "要注意のみ"
+    },
+    "lifecycle": {
+      "active": "進行中",
+      "on_hold": "保留",
+      "completed": "完了",
+      "delivered": "納品済み",
+      "cancelled": "キャンセル",
+      "confirm": "ステータスを「{{status}}」に変更しますか?"
+    },
+    "stages": {
+      "title": "制作ステージ",
+      "intake": "受付",
+      "preparation": "準備",
+      "translation": "翻訳",
+      "editing": "編集",
+      "typesetting": "組版",
+      "qa": "品質管理",
+      "delivery": "納品",
+      "lockedHint": "先にブロックするノートを解決してください。",
+      "block": "ブロック",
+      "unblock": "ブロック解除",
+      "complete": "ステージを完了",
+      "next": "次のステージ",
+      "returnToEditing": "編集に戻る",
+      "blockPlaceholder": "このステージをブロックしているものは何ですか?",
+      "blockSubmit": "ステージをブロック",
+      "allDone": "すべてのステージが完了しました。"
+    },
+    "stageStates": {
+      "not_started": "未開始",
+      "in_progress": "進行中",
+      "blocked": "ブロック中",
+      "done": "完了"
+    },
+    "priority": {
+      "normal": "通常",
+      "high": "高",
+      "urgent": "緊急"
+    },
+    "attention": {
+      "overdue": "期限切れ",
+      "due_soon": "期限間近",
+      "blocked": "ブロック中",
+      "import_failed": "インポート失敗",
+      "import_unreviewed": "インポート要確認",
+      "pipeline_failed": "パイプライン失敗",
+      "ready_to_deliver": "納品可能",
+      "stale": "アクティビティなし"
+    },
+    "sla": {
+      "ok": "順調",
+      "risk": "リスクあり",
+      "breached": "期限超過"
+    },
+    "table": {
+      "order": "注文",
+      "assignee": "担当者",
+      "deadline": "納期",
+      "progress": "{{total}} ページ中 {{translated}} ページ",
+      "progressTitle": "進捗",
+      "progressLabel": "翻訳の進捗",
+      "noPages": "ページなし",
+      "sla": "SLA",
+      "stage": "ステージ",
+      "status": "ステータス",
+      "attention": "注意",
+      "actions": "操作",
+      "empty": "注文が見つかりません。",
+      "total": "注文: {{count}} 件",
+      "open": "開く",
+      "addBlocker": "注文 {{number}} にブロッカーを追加",
+      "addBlockerHint": "クイックブロッカー",
+      "sortNearestOn": "納期が近い順",
+      "sortNearestOff": "デフォルト順"
+    },
+    "blockerDialog": {
+      "title": "新しいブロッカー",
+      "description": "注文 {{number}}。ブロックするノートは現在のステージを停止します。",
+      "placeholder": "作業が進まない原因は何ですか?",
+      "submit": "ステージをブロック"
+    },
+    "sheet": {
+      "title": "注文",
+      "editTitle": "タイトルを編集",
+      "edit": "編集",
+      "pagesChip": "ページ: {{total}} 中 {{translated}}",
+      "blockersChip": "ブロッカー: {{count}}"
+    },
+    "actions": {
+      "openEditor": "エディターを開く",
+      "attachProject": "プロジェクトを関連付け",
+      "exportXlsx": "エクスポート (XLSX)",
+      "exportCsv": "CSV",
+      "import": "翻訳をインポート",
+      "exportSaved": "ファイルを保存しました"
+    },
+    "form": {
+      "number": "番号",
+      "numberPlaceholder": "ORD-2026-0001 (任意)",
+      "title": "タイトル",
+      "clientName": "クライアント",
+      "assignee": "担当者",
+      "priority": "優先度",
+      "lifecycle": "ステータス",
+      "sourceLanguage": "原語",
+      "targetLanguage": "訳語",
+      "deadline": "納期",
+      "brief": "ブリーフ",
+      "description": "注文は管理上のレコードです。ページのコンテンツはプロジェクトに存在します。",
+      "createTitle": "新規注文",
+      "editTitle": "注文 {{number}} を編集",
+      "create": "注文を作成",
+      "save": "保存"
+    },
+    "tabs": {
+      "main": "概要",
+      "notes": "ノート",
+      "activity": "アクティビティ",
+      "imports": "インポート"
+    },
+    "notes": {
+      "kind": "ノートの種類",
+      "placeholder": "ノートの内容…",
+      "add": "ノートを追加",
+      "empty": "ノートはまだありません。",
+      "resolved": "{{by}} が解決",
+      "resolve": "解決",
+      "reopen": "再度開く",
+      "delete": "削除",
+      "deleteConfirm": "このノートを削除しますか? この操作はアクティビティログに記録されます。"
+    },
+    "noteKinds": {
+      "internal": "内部",
+      "client": "クライアント",
+      "blocker": "ブロッカー",
+      "qa": "品質管理"
+    },
+    "activity": {
+      "empty": "イベントはまだありません。",
+      "order_created": "注文を作成しました",
+      "order_updated": "注文を更新しました",
+      "project_attached": "プロジェクトを関連付けました",
+      "project_detached": "プロジェクト解除",
+      "lifecycle_changed": "ステータスを変更しました",
+      "stage_started": "ステージを開始しました",
+      "stage_completed": "ステージを完了しました",
+      "stage_blocked": "ステージがブロックされました",
+      "stage_unblocked": "ステージのブロックを解除しました",
+      "note_added": "ノートを追加しました",
+      "note_resolved": "ノートを解決しました",
+      "note_deleted": "ノートを削除しました",
+      "import_uploaded": "翻訳をアップロードしました",
+      "import_applied": "インポートを適用しました",
+      "import_failed": "インポートに失敗しました",
+      "import_discarded": "インポートを破棄しました",
+      "pipeline_succeeded": "パイプラインが完了しました",
+      "pipeline_failed": "パイプラインが失敗しました"
+    },
+    "importStates": {
+      "ready": "適用可能",
+      "needs_attention": "要確認",
+      "failed": "失敗",
+      "applied": "適用済み"
+    },
+    "imports": {
+      "empty": "インポートはまだありません。",
+      "counts": "適用: {{accepted}} · エラー: {{errors}} · 警告: {{warnings}}",
+      "report": "レポート CSV",
+      "reportSaved": "レポートを保存しました"
+    },
+    "import": {
+      "title": "インポートのプレビュー",
+      "row": "行 {{row}}",
+      "errorsCount": "エラー: {{count}}",
+      "warningsCount": "警告: {{count}}",
+      "acceptedCount": "適用予定: {{total}} 件中 {{accepted}} 件",
+      "errorsHeading": "ブロッキングエラー ({{count}})",
+      "warningsHeading": "警告 ({{count}})",
+      "page": "ページ",
+      "segment": "セグメント",
+      "source": "原文",
+      "translation": "翻訳",
+      "change": "変更",
+      "apply": "インポートを適用",
+      "discard": "破棄",
+      "close": "閉じる",
+      "applyHint": "ファイル内のエラーを修正して、再度アップロードしてください。"
+    },
+    "importChanges": {
+      "new": "新規",
+      "changed": "変更あり",
+      "unchanged": "変更なし"
+    },
+    "duplicate": {
+      "title": "このファイルはすでにアップロードされています",
+      "description": "同じファイルはすでにこの注文にインポートされています。重複は作成されませんでした。",
+      "ok": "了解"
+    },
+    "attach": {
+      "title": "プロジェクトを関連付け",
+      "description": "注文は 1 つの Koharu プロジェクト内で編集します。",
+      "noProjects": "プロジェクトがまだありません — 下で新規作成してください。",
+      "newPlaceholder": "新しいプロジェクト名",
+      "createAndAttach": "作成して関連付け"
+    }
   },
   "outputPicker": {
     "instructions": "翻訳指示",
     "instructionsPlaceholder": "文体、固有名詞、書式に関する任意の指示。",
+    "sourceLanguage": "原文の言語",
     "targetLanguage": "対象言語",
-    "title": "翻訳出力"
+    "title": "翻訳出力",
+    "validators": "自動バリデーター"
+  },
+  "repairPresets": {
+    "delete": "プリセットを削除",
+    "label": "プリセット",
+    "name": "プリセット名",
+    "placeholder": "プリセットを選択",
+    "rename": "名前を変更",
+    "save": "プリセットとして保存"
+  },
+  "systemPrompt": {
+    "editBuiltIn": "組み込みプロンプトを編集",
+    "hint": "空の場合は組み込みプロンプトを使います。{source} と {target} は実行時の言語に置き換わります。",
+    "label": "システムプロンプト",
+    "profile": "コンテンツプロファイル",
+    "profiles": {
+      "comic": "コミック",
+      "hentai": "成人向け漫画",
+      "manga": "漫画"
+    }
+  },
+  "translationValidators": {
+    "add": "ルールを追加",
+    "chinese": "中国語の漢字",
+    "customRule": "カスタム検証ルール",
+    "japanese": "日本語のかな",
+    "korean": "韓国語の文字",
+    "latin": "ラテン文字",
+    "name": "ルール名",
+    "namePlaceholder": "例: ラテン文字を禁止",
+    "pattern": "正規表現",
+    "patternPlaceholder": "[A-Za-z]",
+    "presets": "文字種の禁止プリセット",
+    "remove": "ルールを削除"
   },
   "phase": {
+    "censor_detection": "検閲検出",
+    "decensor": "検閲除去",
     "detection": "検出",
     "inpainting": "インペイント",
     "ocr": "OCR",
     "translation": "翻訳"
   },
   "phaseDescription": {
+    "censor_detection": "隠された領域を検出し、マスクを保存します。",
+    "decensor": "選択したモデルで検閲された部分を復元します。",
     "detection": "ページ上のテキストを見つけます。",
     "inpainting": "文字を消した部分の絵を復元します。",
     "ocr": "各領域内の原文を読み取ります。",
@@ -321,6 +658,7 @@
     "atlas-cloud": "Atlas でホストされる言語モデル。",
     "caiyun": "Caiyun 翻訳 API。",
     "claude": "Anthropic Claude モデル。",
+    "cursor": "Cursor Cloud Agent のモデル。",
     "deepl": "DeepL 翻訳 API。",
     "deepseek": "DeepSeek 言語モデル。",
     "gemini": "Google Gemini モデル。",
@@ -335,14 +673,16 @@
   },
   "resources": {
     "cpu": "CPU",
+    "gpu": "GPU",
+    "gpuUtilization": "GPU使用率",
     "processUtilization": "プロセス使用率",
     "ram": "RAM",
-    "summary": "RAM {{ram}}%、CPU {{cpu}}%",
+    "summary": "RAM {{ram}}、CPU {{cpu}}",
+    "summaryGpu": "RAM {{ram}}、CPU {{cpu}}、GPU {{gpu}}",
     "title": "システムリソース",
-    "tooltip": "RAM {{ramUsed}} / {{ramTotal}} · CPU {{cpu}}%",
+    "unavailable": "利用不可",
     "usedOfTotal": "{{total}}中{{used}}を使用",
-    "vramUnavailable": "利用不可",
-    "vramValue": "VRAM {{value}}"
+    "vram": "VRAM"
   },
   "settings": {
     "appearance": {
@@ -372,6 +712,19 @@
       "temperature": "温度",
       "reasoning": "推論",
       "reasoningDescription": "翻訳時にモデルの推論を使用します。",
+      "reasoningLevel": "推論レベル",
+      "reasoningLevelDescription": "推論が有効なときに、モデルがどの程度深く推論するかを指定します。「既定」ではプロバイダー自身の設定を使用します。",
+      "reasoningLevelUnsupported": "選択したモデルはこのレベルに対応していません。別のレベルか「既定」を選んでください。",
+      "reasoningLevels": {
+        "high": "高",
+        "low": "低",
+        "max": "最大",
+        "medium": "中",
+        "minimal": "最小",
+        "xhigh": "最高"
+      },
+      "reasoningOnOffOnly": "このモデルには推論レベルがありません。推論はオンとオフの切り替えのみです。",
+      "reasoningUnsupported": "このモデルは推論に対応していません。",
       "title": "生成",
       "topK": "上位 K 件",
       "topP": "Top P",
@@ -380,14 +733,44 @@
     },
     "loading": "設定を読み込み中…",
     "pipeline": {
+      "censorDetection": {
+        "description": "隠された領域を検出し、マスクを保存します。",
+        "title": "検閲検出"
+      },
       "description": "各ページの処理に使用するモデルとオプションを選択します。",
       "modelLabel": "{{stage}}モデル",
       "options": {
         "bubbleThreshold": "吹き出ししきい値",
+        "guidanceScale": "ガイダンス強度",
+        "inferenceSteps": "推論ステップ数",
+        "lineartStrength": "線画強度",
+        "loraPath": "LoRA ファイル（任意）",
+        "loraStrength": "LoRA 強度（0 = 無効）",
         "negativePrompt": "ネガティブプロンプト",
         "panelThreshold": "コマしきい値",
         "prompt": "プロンプト",
-        "textThreshold": "テキストしきい値"
+        "textThreshold": "テキストしきい値",
+        "endpoint": "ComfyUI エンドポイント",
+        "checkpoint": "チェックポイント",
+        "controlnet": "ControlNet",
+        "positivePrompt": "ポジティブプロンプト",
+        "seed": "シード",
+        "denoise": "再描画強度",
+        "automaticCensorMask": "自動検閲マスク",
+        "detectMosaic": "モザイクを検出",
+        "censorThreshold": "検閲検出しきい値",
+        "censorMaskGrow": "検閲マスク拡張",
+        "censorMaskBlur": "検閲マスクぼかし",
+        "maskPadding": "マスク余白",
+        "maskGrow": "マスク拡張",
+        "maskBlur": "マスクぼかし",
+        "colorMatchStrength": "色合わせ",
+        "timeoutSeconds": "タイムアウト（秒）"
+      },
+      "profiles": {
+        "flux2-klein-9b-uncensored": "無修正版 Q4_K_M テキストエンコーダー搭載の蒸留版 9B Q8",
+        "diffusioncreampy-animagine-xl-4": "Animagine XL 4.0 Opt を使用した、アニメ・漫画向けローカル ComfyUI SDXL インペイント。",
+        "diffusioncreampy-illustrious-xl-2": "Illustrious XL 2.0 を使用した、詳細なイラスト向けローカル ComfyUI SDXL インペイント。"
       },
       "processing": "処理中",
       "stages": {
@@ -395,9 +778,21 @@
           "description": "テキスト、吹き出し、コマを検出します。",
           "title": "検出"
         },
-        "inpainting": {
-          "description": "削除した文字の下にあるアートワークを再構築します。",
-          "title": "インペイント"
+        "decensor": {
+          "description": "選択したモデルで検閲された部分を復元します。",
+          "title": "検閲除去"
+        },
+        "artwork": {
+          "description": "吹き出しの外にある文字や効果音の下のアートワークを再構築します。",
+          "title": "アートワークのインペイント"
+        },
+        "manual": {
+          "description": "マスクを描き、独立したプロンプトと設定でFLUXによる修復を行います。",
+          "title": "手動インペイント (FLUX)"
+        },
+        "bubbles": {
+          "description": "吹き出し内の文字を高速に消去します。",
+          "title": "吹き出しのインペイント"
         },
         "ocr": {
           "description": "検出領域内の原文を読み取ります。",
@@ -429,6 +824,7 @@
       "providers": "プロバイダー",
       "shortcuts": "ショートカット",
       "translation": "翻訳",
+      "usage": "トークン使用量",
       "typesetting": "組版"
     },
     "title": "設定",
@@ -444,6 +840,11 @@
       "quantization": "量子化",
       "quantizationDescription": "小さい形式はメモリ使用量を抑えますが、通常は品質とのトレードオフがあります。",
       "selectQuantization": "量子化方式を選択",
+      "sourceLanguageDescription": "原文テキストの言語を選択します。",
+      "systemPrompt": "システムプロンプト",
+      "systemPromptDescription": "エディター実行で使うプロファイルを選択します。各プロファイルは独自のプロンプトを保持し、Telegram の注文は注文ごとのプロファイルを使います。",
+      "validators": "自動バリデーター",
+      "validatorsDescription": "一致した翻訳テキストを拒否し、修正指示を付けて一度再生成します。",
       "targetLanguageDescription": "テキストの翻訳先言語を選択します。",
       "title": "翻訳",
       "translationModel": "翻訳モデル",
@@ -499,38 +900,110 @@
     "brushSizePixels": "ブラシサイズ: {{size}}ピクセル",
     "brushSizeShort": "{{size}} px",
     "color_picker": "カラーピッカー",
+    "decensor": "検閲除去",
     "decreaseBrushSize": "ブラシサイズを縮小",
     "draw": "描画",
     "eraser": "消しゴム",
     "increaseBrushSize": "ブラシサイズを拡大",
     "pan": "移動",
-    "remove": "削除",
+    "fast": "Fast",
+    "inpainting": "Inpainting (FLUX)",
+    "applyRepairSettings": "設定を適用",
+    "repairSettingsHint": "描く前に設定を適用してください。受付済みのマスクは元の設定を保持します。",
     "select": "選択",
     "text": "テキスト"
   },
-  "updater": {
-    "available": {
-      "description": "Koharu <strong>{{version}}</strong> をインストールできます",
-      "title": "アップデートが利用可能"
-    },
-    "close": "閉じる",
-    "downloading": {
-      "subtitle": "Koharu {{version}}",
-      "title": "アップデートをダウンロード中…"
-    },
-    "error": {
-      "description": "アップデート中に問題が発生しました",
-      "title": "アップデートに失敗しました"
-    },
-    "later": "後で",
-    "noNotes": "リリースノートはありません。",
-    "retry": "再試行",
-    "update": "更新"
+  "usage": {
+    "title": "トークン使用量",
+    "description": "翻訳とAIエージェントのリクエスト別ローカル記録。",
+    "privacy": "プロンプト、画像、応答、認証情報、思考の本文は記録しません。",
+    "unknownNotice": "ダッシュはプロバイダーが値を返さなかったことを示します。費用は報告値であり推定ではありません。思考とキャッシュは内訳で、合計に加算しません。",
+    "provider": "プロバイダー",
+    "model": "モデル",
+    "from": "開始日",
+    "to": "終了日（当日を含む）",
+    "apply": "絞り込む",
+    "refresh": "更新",
+    "requests": "リクエスト",
+    "input": "入力トークン",
+    "output": "出力トークン",
+    "total": "合計トークン",
+    "cost": "報告された費用",
+    "missingUsage": "トークン情報なし: {{count}}件",
+    "missingCost": "費用情報なし: {{count}}件",
+    "coverage": "{{total}}件中{{known}}件で報告",
+    "empty": "条件に一致するリクエストはありません。",
+    "failed": "使用量の記録を読み込めませんでした。",
+    "time": "時刻",
+    "operation": "操作",
+    "status": "結果",
+    "latency": "所要時間",
+    "details": "リクエスト詳細",
+    "detailsFor": "リクエスト{{id}}の詳細",
+    "previous": "新しい記録",
+    "next": "古い記録",
+    "page": "{{number}}ページ",
+    "identity": "リクエストとコンテキスト",
+    "tokens": "トークン内訳",
+    "parameters": "生成パラメーター",
+    "invalidDates": "開始日は終了日以前にしてください。",
+    "storage": "ローカル記録: {{path}}",
+    "fields": {
+      "provider": "プロバイダー",
+      "requested_model": "指定モデル",
+      "resolved_model": "応答モデル",
+      "request_id": "プロバイダーリクエストID",
+      "response_id": "プロバイダー応答ID",
+      "attempt": "試行",
+      "http_status": "HTTPステータス",
+      "error_kind": "エラー分類",
+      "project_id": "プロジェクト",
+      "page_id": "ページ",
+      "job_id": "ジョブ / 実行",
+      "source_language": "原文言語",
+      "target_language": "翻訳先言語",
+      "segment_count": "セグメント数",
+      "image_count": "画像数",
+      "context_count": "コンテキスト数",
+      "reasoning": "思考の有効化",
+      "reasoning_effort": "思考レベル",
+      "reasoning_tokens": "思考トークン",
+      "cache_read_tokens": "キャッシュ入力トークン",
+      "cache_write_tokens": "キャッシュ書き込みトークン",
+      "image_input_tokens": "画像入力トークン",
+      "image_output_tokens": "画像出力トークン",
+      "audio_input_tokens": "音声入力トークン",
+      "audio_output_tokens": "音声出力トークン",
+      "cost_source": "費用の出典"
+    }
   },
   "window": {
     "close": "閉じる",
     "maximize": "最大化",
     "minimize": "最小化",
     "restore": "元のサイズに戻す"
+  },
+  "galleryImport": {
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "cookies": "exhentai のクッキー",
+    "cookiesHint": "ipb_member_id、ipb_pass_hash、igneous を含む cookie ヘッダーを貼り付けてください。システムのキーチェーンに保存され、再表示されません。",
+    "cookiesOptional": "（exhentai のみ）",
+    "description": "複数のギャラリーを指定した順序で新しいプロジェクトにダウンロードします。e-hentai、exhentai、nhentai のリンクに対応しています。",
+    "downloading": "ページをダウンロードしています…",
+    "error": "読み込みに失敗しました。リンクを確認してもう一度お試しください。",
+    "galleries": "ギャラリー",
+    "import": "読み込む",
+    "importing": "読み込み中…",
+    "importingPages": "プロジェクトを作成しています…",
+    "inspecting": "ギャラリー情報を読み取っています…",
+    "name": "プロジェクト名",
+    "nameOptional": "（任意）",
+    "pages": "ページ",
+    "progress": "読み込みの進行状況",
+    "success": "プロジェクトを作成しました",
+    "title": "ギャラリーを読み込む",
+    "urls": "ギャラリーのリンク（1行に1つ、最大20件）",
+    "urlsPlaceholder": "https://e-hentai.org/g/123456/abcdef0123/\nhttps://nhentai.net/g/654321/"
   }
 }

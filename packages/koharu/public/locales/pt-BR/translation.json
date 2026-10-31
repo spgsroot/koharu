@@ -6,19 +6,26 @@
     "version": "Versão"
   },
   "activity": {
+    "queued": "Na fila",
     "dismiss": "Dispensar",
     "downloadFailed": "Falha no download.",
     "downloadingFiles": "Baixando {{count}} arquivos",
     "downloadingFiles_one": "Baixando {{count}} arquivos",
     "downloadingFiles_other": "Baixando {{count}} arquivos",
+    "importApply": "Aplicar",
+    "importDiscard": "Descartar",
+    "importIssues": "{{errors}} erros · {{warnings}} avisos",
     "modelDownload": "Download do modelo",
     "processing": "Processando",
+    "pageLabel": "Página {{number}}: {{label}}",
     "processingFailed": "Falha no processamento.",
     "stop": "Parar",
     "title": "Atividade"
   },
   "agent": {
     "account": "Conta do ChatGPT",
+    "accountGrok": "Conta xAI",
+    "accountKimi": "Conta do Kimi Code",
     "applying": "Aplicando alterações ao projeto…",
     "automatic": "Automático",
     "cancel": "Cancelar",
@@ -31,8 +38,11 @@
     "loading": "Carregando o Codex…",
     "message": "Enviar mensagem ao agente do Koharu",
     "model": "Modelo do Codex",
+    "modelGrok": "Modelo do Grok",
+    "modelKimi": "Modelo Kimi",
     "placeholder": "Peça ao Koharu para trabalhar neste projeto…",
     "properties": "Propriedades",
+    "provider": "Provedor",
     "reasoning": "Raciocínio",
     "reasoningLevels": {
       "high": "Alto",
@@ -45,7 +55,13 @@
     "send": "Enviar",
     "signIn": "Entrar com o Codex",
     "signInDescription": "Entre com sua assinatura do ChatGPT. O Koharu usa autenticação por código de dispositivo e nunca solicita uma chave de API.",
+    "signInDescriptionGrok": "Entre com sua conta xAI. O Koharu usa autenticação por código de dispositivo e nunca solicita uma chave de API.",
+    "signInDescriptionKimi": "Entre com sua assinatura do Kimi Code. O Koharu usa autenticação por código de dispositivo e nunca pede uma chave de API.",
+    "signInGrok": "Entrar com o Grok",
+    "signInKimi": "Entrar com Kimi",
     "signInTitle": "Conectar ao Codex",
+    "signInTitleGrok": "Conectar ao Grok",
+    "signInTitleKimi": "Conectar Kimi",
     "signOut": "Sair",
     "signingIn": "Aguardando o login…",
     "thinking": "Pensando…",
@@ -53,8 +69,10 @@
     "working": "Trabalhando…"
   },
   "canvas": {
+    "censorMask": "Máscara de censura",
     "empty": "Selecione uma página para começar.",
     "fit": "Ajustar à janela",
+    "noCensorMask": "Execute a detecção de censura para ver a máscara",
     "surface": "Tela do Koharu",
     "unavailable": "A tela WebGPU não está disponível"
   },
@@ -121,6 +139,41 @@
       "system": "Sistema"
     },
     "style": "Estilo"
+  },
+  "history": {
+    "title": "Histórico",
+    "clear": "Limpar histórico",
+    "clearConfirmTitle": "Limpar o histórico?",
+    "clearConfirmDescription": "Todos os estados de desfazer e refazer serão removidos. O documento não será alterado.",
+    "clearConfirmAction": "Limpar",
+    "snapshot": "Criar instantâneo",
+    "snapshots": "Instantâneos",
+    "restore": "Restaurar",
+    "deleteSnapshot": "Excluir instantâneo",
+    "empty": "Nenhuma ação registrada ainda.",
+    "state": {
+      "open": "Abrir",
+      "import_pages": "Importar páginas",
+      "import_translations": "Importação de traduções",
+      "rename_page": "Renomear página",
+      "delete_pages": "Excluir páginas",
+      "move_page": "Mover página",
+      "add_text": "Adicionar texto",
+      "source_text": "Texto original",
+      "translation": "Tradução",
+      "typography": "Tipografia",
+      "geometry": "Geometria",
+      "transform": "Transformar",
+      "toggle_layer": "Visibilidade da camada",
+      "opacity": "Opacidade",
+      "delete_layers": "Excluir camadas",
+      "paste_layers": "Colar camadas",
+      "move_layer": "Mover camada",
+      "brush": "Pincel",
+      "erase": "Borracha",
+      "snapshot_restore": "Restauração de captura",
+      "pipeline_stage": "Processamento"
+    }
   },
   "inference": {
     "currentPage": "Página atual",
@@ -243,6 +296,9 @@
     "about": "Sobre",
     "closeProject": "Fechar projeto",
     "delete": "Excluir seleção",
+    "copy": "Copiar",
+    "cut": "Recortar",
+    "paste": "Colar",
     "discord": "Discord",
     "edit": "Editar",
     "exportPng": "Exportar PNG…",
@@ -267,6 +323,7 @@
     "baseUrl": "URL base",
     "default": "Padrão",
     "instructions": "Instruções",
+    "sourceLanguage": "Idioma de origem",
     "targetLanguage": "Idioma de destino"
   },
   "modelPicker": {
@@ -297,21 +354,301 @@
     "pages": "Páginas",
     "rename": "Renomear",
     "renameDescription": "Escolha um novo nome para esta página.",
-    "renameTitle": "Renomear página"
+    "renameTitle": "Renomear página",
+    "selected": "{{count}} selecionadas"
+  },
+  "orders": {
+    "workspace": {
+      "orders": "Pedidos",
+      "editor": "Editor",
+      "projects": "Todos os projetos"
+    },
+    "breadcrumb": {
+      "order": "Pedido {{number}}"
+    },
+    "header": {
+      "searchPlaceholder": "Pesquisar por número, título, cliente…",
+      "filters": "Filtros",
+      "createOrder": "Criar pedido"
+    },
+    "summary": {
+      "overdue": "Vencidos",
+      "due_today": "Vencem hoje",
+      "blocked": "Bloqueados",
+      "ready": "Prontos para entregar"
+    },
+    "views": {
+      "label": "Visualizações salvas",
+      "attention": "Precisam de atenção",
+      "mine": "Meus",
+      "today": "Hoje",
+      "all": "Todos"
+    },
+    "filters": {
+      "lifecycle": "Estado",
+      "stage": "Etapa",
+      "anyStage": "Qualquer etapa",
+      "assignee": "Responsável",
+      "client": "Cliente",
+      "needsAttention": "Somente os que precisam de atenção"
+    },
+    "lifecycle": {
+      "active": "Ativo",
+      "on_hold": "Em espera",
+      "completed": "Concluído",
+      "delivered": "Entregue",
+      "cancelled": "Cancelado",
+      "confirm": "Alterar o estado para \"{{status}}\"?"
+    },
+    "stages": {
+      "title": "Etapas de produção",
+      "intake": "Recebimento",
+      "preparation": "Preparação",
+      "translation": "Tradução",
+      "editing": "Edição",
+      "typesetting": "Composição tipográfica",
+      "qa": "Controle de qualidade",
+      "delivery": "Entrega",
+      "lockedHint": "Resolva primeiro as notas de bloqueio.",
+      "block": "Bloquear",
+      "unblock": "Desbloquear",
+      "complete": "Concluir etapa",
+      "next": "Próxima etapa",
+      "returnToEditing": "Voltar à edição",
+      "blockPlaceholder": "O que está bloqueando esta etapa?",
+      "blockSubmit": "Bloquear etapa",
+      "allDone": "Todas as etapas foram concluídas."
+    },
+    "stageStates": {
+      "not_started": "Não iniciada",
+      "in_progress": "Em andamento",
+      "blocked": "Bloqueada",
+      "done": "Concluída"
+    },
+    "priority": {
+      "normal": "Normal",
+      "high": "Alta",
+      "urgent": "Urgente"
+    },
+    "attention": {
+      "overdue": "Vencido",
+      "due_soon": "Vence em breve",
+      "blocked": "Bloqueado",
+      "import_failed": "Importação falhou",
+      "import_unreviewed": "Importação aguarda revisão",
+      "pipeline_failed": "Fluxo falhou",
+      "ready_to_deliver": "Pronto para entregar",
+      "stale": "Sem atividade"
+    },
+    "sla": {
+      "ok": "No prazo",
+      "risk": "Em risco",
+      "breached": "Vencido"
+    },
+    "table": {
+      "order": "Pedido",
+      "assignee": "Responsável",
+      "deadline": "Prazo",
+      "progress": "{{translated}} de {{total}} páginas",
+      "progressTitle": "Progresso",
+      "progressLabel": "Progresso da tradução",
+      "noPages": "Sem páginas",
+      "sla": "SLA",
+      "stage": "Etapa",
+      "status": "Estado",
+      "attention": "Atenção",
+      "actions": "Ações",
+      "empty": "Nenhum pedido encontrado.",
+      "total": "Pedidos: {{count}}",
+      "open": "Abrir",
+      "addBlocker": "Adicionar um bloqueio ao pedido {{number}}",
+      "addBlockerHint": "Bloqueio rápido",
+      "sortNearestOn": "Prazo mais próximo primeiro",
+      "sortNearestOff": "Ordem padrão"
+    },
+    "blockerDialog": {
+      "title": "Novo bloqueio",
+      "description": "Pedido {{number}}. Uma nota de bloqueio interrompe a etapa atual.",
+      "placeholder": "O que está impedindo o trabalho de avançar?",
+      "submit": "Bloquear etapa"
+    },
+    "sheet": {
+      "title": "Pedido",
+      "editTitle": "Editar título",
+      "edit": "Editar",
+      "pagesChip": "Páginas: {{translated}} de {{total}}",
+      "blockersChip": "Bloqueios: {{count}}"
+    },
+    "actions": {
+      "openEditor": "Abrir editor",
+      "attachProject": "Vincular projeto",
+      "exportXlsx": "Exportar (XLSX)",
+      "exportCsv": "CSV",
+      "import": "Importar traduções",
+      "exportSaved": "Arquivo salvo"
+    },
+    "form": {
+      "number": "Número",
+      "numberPlaceholder": "ORD-2026-0001 (opcional)",
+      "title": "Título",
+      "clientName": "Cliente",
+      "assignee": "Responsável",
+      "priority": "Prioridade",
+      "lifecycle": "Estado",
+      "sourceLanguage": "Idioma de origem",
+      "targetLanguage": "Idioma de destino",
+      "deadline": "Prazo",
+      "brief": "Briefing",
+      "description": "Um pedido é um registro administrativo. O conteúdo das páginas fica no projeto.",
+      "createTitle": "Novo pedido",
+      "editTitle": "Editar pedido {{number}}",
+      "create": "Criar pedido",
+      "save": "Salvar"
+    },
+    "tabs": {
+      "main": "Visão geral",
+      "notes": "Notas",
+      "activity": "Atividade",
+      "imports": "Importações"
+    },
+    "notes": {
+      "kind": "Tipo de nota",
+      "placeholder": "Texto da nota…",
+      "add": "Adicionar nota",
+      "empty": "Ainda não há notas.",
+      "resolved": "Resolvida por {{by}}",
+      "resolve": "Resolver",
+      "reopen": "Reabrir",
+      "delete": "Excluir",
+      "deleteConfirm": "Excluir esta nota? A ação será registrada no log de atividades."
+    },
+    "noteKinds": {
+      "internal": "Interna",
+      "client": "Cliente",
+      "blocker": "Bloqueio",
+      "qa": "Controle de qualidade"
+    },
+    "activity": {
+      "empty": "Ainda não há eventos.",
+      "order_created": "Pedido criado",
+      "order_updated": "Pedido atualizado",
+      "project_attached": "Projeto vinculado",
+      "project_detached": "Projeto desvinculado",
+      "lifecycle_changed": "Estado alterado",
+      "stage_started": "Etapa iniciada",
+      "stage_completed": "Etapa concluída",
+      "stage_blocked": "Etapa bloqueada",
+      "stage_unblocked": "Etapa desbloqueada",
+      "note_added": "Nota adicionada",
+      "note_resolved": "Nota resolvida",
+      "note_deleted": "Nota excluída",
+      "import_uploaded": "Tradução enviada",
+      "import_applied": "Importação aplicada",
+      "import_failed": "Importação falhou",
+      "import_discarded": "Importação descartada",
+      "pipeline_succeeded": "Fluxo concluído",
+      "pipeline_failed": "Fluxo falhou"
+    },
+    "importStates": {
+      "ready": "Pronta para aplicar",
+      "needs_attention": "Precisa de revisão",
+      "failed": "Falhou",
+      "applied": "Aplicada"
+    },
+    "imports": {
+      "empty": "Ainda não há importações.",
+      "counts": "aceitas: {{accepted}} · erros: {{errors}} · avisos: {{warnings}}",
+      "report": "Relatório CSV",
+      "reportSaved": "Relatório salvo"
+    },
+    "import": {
+      "title": "Pré-visualização da importação",
+      "row": "Linha {{row}}",
+      "errorsCount": "Erros: {{count}}",
+      "warningsCount": "Avisos: {{count}}",
+      "acceptedCount": "Serão aplicadas: {{accepted}} de {{total}}",
+      "errorsHeading": "Erros bloqueantes ({{count}})",
+      "warningsHeading": "Avisos ({{count}})",
+      "page": "Página",
+      "segment": "Segmento",
+      "source": "Origem",
+      "translation": "Tradução",
+      "change": "Alteração",
+      "apply": "Aplicar importação",
+      "discard": "Descartar",
+      "close": "Fechar",
+      "applyHint": "Corrija os erros no arquivo e envie-o novamente."
+    },
+    "importChanges": {
+      "new": "Novas",
+      "changed": "Alteradas",
+      "unchanged": "Sem alterações"
+    },
+    "duplicate": {
+      "title": "Este arquivo já foi enviado",
+      "description": "O mesmo arquivo já foi importado neste pedido. Nenhuma duplicata foi criada.",
+      "ok": "Entendi"
+    },
+    "attach": {
+      "title": "Vincular projeto",
+      "description": "Um pedido é editado dentro de um projeto do Koharu.",
+      "noProjects": "Ainda não há projetos — crie um novo abaixo.",
+      "newPlaceholder": "Nome do novo projeto",
+      "createAndAttach": "Criar e vincular"
+    }
   },
   "outputPicker": {
     "instructions": "Instruções de tradução",
     "instructionsPlaceholder": "Orientações opcionais sobre tom, nomes e formatação.",
+    "sourceLanguage": "Idioma de origem",
     "targetLanguage": "Idioma de destino",
-    "title": "Saída da tradução"
+    "title": "Saída de tradução",
+    "validators": "Validadores automáticos"
+  },
+  "repairPresets": {
+    "delete": "Excluir predefinição",
+    "label": "Predefinição",
+    "name": "Nome da predefinição",
+    "placeholder": "Escolha uma predefinição",
+    "rename": "Renomear",
+    "save": "Salvar como predefinição"
+  },
+  "systemPrompt": {
+    "editBuiltIn": "Editar prompt integrado",
+    "hint": "Vazio usa o prompt integrado. {source} e {target} inserem os idiomas da execução.",
+    "label": "Prompt do sistema",
+    "profile": "Perfil de conteúdo",
+    "profiles": {
+      "comic": "Quadrinhos",
+      "hentai": "Hentai",
+      "manga": "Mangá"
+    }
+  },
+  "translationValidators": {
+    "add": "Adicionar regra",
+    "chinese": "Caracteres han chineses",
+    "customRule": "Regra de validação personalizada",
+    "japanese": "Kana japonês",
+    "korean": "Caracteres coreanos",
+    "latin": "Letras latinas",
+    "name": "Nome da regra",
+    "namePlaceholder": "ex.: Sem letras latinas",
+    "pattern": "Expressão regular",
+    "patternPlaceholder": "[A-Za-z]",
+    "presets": "Predefinições para bloquear escritas",
+    "remove": "Remover regra"
   },
   "phase": {
+    "censor_detection": "Detecção de censura",
+    "decensor": "Remoção de censura",
     "detection": "Detecção",
     "inpainting": "Preenchimento",
     "ocr": "OCR",
     "translation": "Tradução"
   },
   "phaseDescription": {
+    "censor_detection": "Encontra áreas censuradas e salva a máscara.",
+    "decensor": "Reconstrói áreas censuradas com o modelo selecionado.",
     "detection": "Localiza o texto na página.",
     "inpainting": "Reconstrói a arte após remover o texto.",
     "ocr": "Lê o texto dentro de cada região.",
@@ -321,6 +658,7 @@
     "atlas-cloud": "Modelos de linguagem hospedados pela Atlas.",
     "caiyun": "API de tradução do Caiyun.",
     "claude": "Modelos Claude da Anthropic.",
+    "cursor": "Modelos do Cursor Cloud Agent.",
     "deepl": "API de tradução do DeepL.",
     "deepseek": "Modelos de linguagem da DeepSeek.",
     "gemini": "Modelos Google Gemini.",
@@ -335,14 +673,16 @@
   },
   "resources": {
     "cpu": "CPU",
+    "gpu": "GPU",
+    "gpuUtilization": "Uso da GPU",
     "processUtilization": "Uso do processo",
     "ram": "RAM",
-    "summary": "RAM {{ram}}%, CPU {{cpu}}%",
+    "summary": "RAM {{ram}}, CPU {{cpu}}",
+    "summaryGpu": "RAM {{ram}}, CPU {{cpu}}, GPU {{gpu}}",
     "title": "Recursos do sistema",
-    "tooltip": "RAM {{ramUsed}} de {{ramTotal}} · CPU {{cpu}}%",
+    "unavailable": "Indisponível",
     "usedOfTotal": "{{used}} de {{total}} usados",
-    "vramUnavailable": "Indisponível",
-    "vramValue": "{{value}} de VRAM"
+    "vram": "VRAM"
   },
   "settings": {
     "appearance": {
@@ -372,6 +712,19 @@
       "temperature": "Temperatura",
       "reasoning": "Raciocínio",
       "reasoningDescription": "Usa o raciocínio do modelo durante a tradução.",
+      "reasoningLevel": "Nível de raciocínio",
+      "reasoningLevelDescription": "Define a profundidade do raciocínio do modelo enquanto o raciocínio está ativado. Padrão mantém a configuração do próprio provedor.",
+      "reasoningLevelUnsupported": "O modelo selecionado não oferece este nível. Escolha outro nível ou Padrão.",
+      "reasoningLevels": {
+        "high": "Alto",
+        "low": "Baixo",
+        "max": "Máximo",
+        "medium": "Médio",
+        "minimal": "Mínimo",
+        "xhigh": "Muito alto"
+      },
+      "reasoningOnOffOnly": "Este modelo não tem níveis de raciocínio. O raciocínio só pode ser ativado ou desativado.",
+      "reasoningUnsupported": "Este modelo não oferece suporte a raciocínio.",
       "title": "Geração",
       "topK": "Top K",
       "topP": "Top P",
@@ -380,14 +733,44 @@
     },
     "loading": "Carregando preferências…",
     "pipeline": {
+      "censorDetection": {
+        "description": "Encontra áreas censuradas e salva a máscara.",
+        "title": "Detecção de censura"
+      },
       "description": "Escolha os modelos e opções usados para processar cada página.",
       "modelLabel": "Modelo de {{stage}}",
       "options": {
         "bubbleThreshold": "Limite de balão",
+        "guidanceScale": "Escala de orientação",
+        "inferenceSteps": "Etapas de inferência",
+        "lineartStrength": "Intensidade do traço",
+        "loraPath": "Arquivo LoRA (opcional)",
+        "loraStrength": "Intensidade da LoRA (0 = desativada)",
         "negativePrompt": "Prompt negativo",
         "panelThreshold": "Limite de quadro",
         "prompt": "Prompt",
-        "textThreshold": "Limite de texto"
+        "textThreshold": "Limite de texto",
+        "endpoint": "Endereço do ComfyUI",
+        "checkpoint": "Checkpoint",
+        "controlnet": "ControlNet",
+        "positivePrompt": "Prompt positivo",
+        "seed": "Semente",
+        "denoise": "Redesenho",
+        "automaticCensorMask": "Máscara de censura automática",
+        "detectMosaic": "Detectar mosaicos",
+        "censorThreshold": "Limite de detecção de censura",
+        "censorMaskGrow": "Expansão da máscara de censura",
+        "censorMaskBlur": "Desfoque da máscara de censura",
+        "maskPadding": "Margem da máscara",
+        "maskGrow": "Expansão da máscara",
+        "maskBlur": "Desfoque da máscara",
+        "colorMatchStrength": "Correspondência de cor",
+        "timeoutSeconds": "Tempo limite (segundos)"
+      },
+      "profiles": {
+        "flux2-klein-9b-uncensored": "9B Q8 destilado com codificador de texto Q4_K_M sem censura",
+        "diffusioncreampy-animagine-xl-4": "Inpainting SDXL local via ComfyUI para anime e mangá com Animagine XL 4.0 Opt.",
+        "diffusioncreampy-illustrious-xl-2": "Inpainting SDXL local via ComfyUI para ilustrações detalhadas com Illustrious XL 2.0."
       },
       "processing": "Processando",
       "stages": {
@@ -395,9 +778,21 @@
           "description": "Encontra texto, balões e quadros.",
           "title": "Detecção"
         },
-        "inpainting": {
-          "description": "Reconstrói a arte sob o texto removido.",
-          "title": "Preenchimento"
+        "decensor": {
+          "description": "Reconstrói áreas censuradas com o modelo selecionado.",
+          "title": "Remoção de censura"
+        },
+        "artwork": {
+          "description": "Reconstrói a arte sob o texto e os efeitos sonoros fora dos balões.",
+          "title": "Preenchimento da arte"
+        },
+        "manual": {
+          "description": "Pinte uma máscara e restaure com FLUX usando prompt e configurações independentes.",
+          "title": "Preenchimento manual (FLUX)"
+        },
+        "bubbles": {
+          "description": "Apaga rapidamente o texto dentro dos balões.",
+          "title": "Preenchimento de balões"
         },
         "ocr": {
           "description": "Lê o texto de origem nas regiões detectadas.",
@@ -429,6 +824,7 @@
       "providers": "Provedores",
       "shortcuts": "Atalhos",
       "translation": "Tradução",
+      "usage": "Uso de tokens",
       "typesetting": "Composição"
     },
     "title": "Configurações",
@@ -444,6 +840,11 @@
       "quantization": "Quantização",
       "quantizationDescription": "Formatos menores usam menos memória, geralmente com perda de qualidade.",
       "selectQuantization": "Selecionar uma quantização",
+      "sourceLanguageDescription": "Escolha o idioma em que o texto de origem está escrito.",
+      "systemPrompt": "Prompt do sistema",
+      "systemPromptDescription": "Escolha o perfil das execuções do editor. Cada perfil mantém seu próprio prompt; pedidos do Telegram usam o próprio perfil.",
+      "validators": "Validadores automáticos",
+      "validatorsDescription": "Rejeita o texto de tradução correspondente e o regenera uma vez com feedback corretivo.",
       "targetLanguageDescription": "Escolha o idioma para o qual o texto será traduzido.",
       "title": "Tradução",
       "translationModel": "Modelo de tradução",
@@ -499,38 +900,110 @@
     "brushSizePixels": "Tamanho do pincel: {{size}} pixels",
     "brushSizeShort": "{{size}} px",
     "color_picker": "Seletor de cores",
+    "decensor": "Remoção de censura",
     "decreaseBrushSize": "Diminuir tamanho do pincel",
     "draw": "Desenhar",
     "eraser": "Borracha",
     "increaseBrushSize": "Aumentar tamanho do pincel",
     "pan": "Mover",
-    "remove": "Remover",
+    "fast": "Fast",
+    "inpainting": "Inpainting (FLUX)",
+    "applyRepairSettings": "Aplicar configurações",
+    "repairSettingsHint": "Aplique as configurações antes de desenhar. Máscaras aceitas mantêm suas configurações originais.",
     "select": "Selecionar",
     "text": "Texto"
   },
-  "updater": {
-    "available": {
-      "description": "Koharu <strong>{{version}}</strong> está pronto para instalar",
-      "title": "Atualização disponível"
-    },
-    "close": "Fechar",
-    "downloading": {
-      "subtitle": "Koharu {{version}}",
-      "title": "Baixando atualização…"
-    },
-    "error": {
-      "description": "Algo deu errado durante a atualização",
-      "title": "Falha na atualização"
-    },
-    "later": "Mais tarde",
-    "noNotes": "Nenhuma nota de versão fornecida.",
-    "retry": "Tentar novamente",
-    "update": "Atualizar"
+  "usage": {
+    "title": "Uso de tokens",
+    "description": "Registro local por solicitação de tradução e inferência do agente.",
+    "privacy": "Prompts, imagens, respostas, credenciais e texto de raciocínio não são registrados.",
+    "unknownNotice": "Um traço indica que o provedor não informou o valor. Os custos são informados, não estimados. Raciocínio e cache são detalhamentos e não devem ser somados ao total.",
+    "provider": "Provedor",
+    "model": "Modelo",
+    "from": "De",
+    "to": "Até, inclusive",
+    "apply": "Aplicar filtros",
+    "refresh": "Atualizar",
+    "requests": "Solicitações",
+    "input": "Tokens de entrada",
+    "output": "Tokens de saída",
+    "total": "Total de tokens",
+    "cost": "Custo informado",
+    "missingUsage": "Solicitações sem uso de tokens informado: {{count}}",
+    "missingCost": "Solicitações sem custo informado: {{count}}",
+    "coverage": "Informado em {{known}} de {{total}} solicitações",
+    "empty": "Nenhuma solicitação corresponde aos filtros.",
+    "failed": "Não foi possível ler o registro local de uso.",
+    "time": "Horário",
+    "operation": "Operação",
+    "status": "Resultado",
+    "latency": "Duração",
+    "details": "Detalhes da solicitação",
+    "detailsFor": "Detalhes da solicitação {{id}}",
+    "previous": "Mais recentes",
+    "next": "Mais antigas",
+    "page": "Página {{number}}",
+    "identity": "Solicitação e contexto",
+    "tokens": "Detalhamento de tokens",
+    "parameters": "Parâmetros de geração",
+    "invalidDates": "A data inicial não pode ser posterior à final.",
+    "storage": "Registro local: {{path}}",
+    "fields": {
+      "provider": "Provedor",
+      "requested_model": "Modelo solicitado",
+      "resolved_model": "Modelo informado",
+      "request_id": "ID de solicitação do provedor",
+      "response_id": "ID de resposta do provedor",
+      "attempt": "Tentativa",
+      "http_status": "Status HTTP",
+      "error_kind": "Categoria do erro",
+      "project_id": "Projeto",
+      "page_id": "Página",
+      "job_id": "Tarefa / execução",
+      "source_language": "Idioma de origem",
+      "target_language": "Idioma de destino",
+      "segment_count": "Segmentos",
+      "image_count": "Imagens",
+      "context_count": "Entradas de contexto",
+      "reasoning": "Raciocínio ativado",
+      "reasoning_effort": "Nível de raciocínio",
+      "reasoning_tokens": "Tokens de raciocínio",
+      "cache_read_tokens": "Tokens de entrada em cache",
+      "cache_write_tokens": "Tokens de gravação em cache",
+      "image_input_tokens": "Tokens de entrada de imagem",
+      "image_output_tokens": "Tokens de saída de imagem",
+      "audio_input_tokens": "Tokens de entrada de áudio",
+      "audio_output_tokens": "Tokens de saída de áudio",
+      "cost_source": "Origem do custo"
+    }
   },
   "window": {
     "close": "Fechar",
     "maximize": "Maximizar",
     "minimize": "Minimizar",
     "restore": "Restaurar"
+  },
+  "galleryImport": {
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "cookies": "Cookies do exhentai",
+    "cookiesHint": "Cole um cabeçalho cookie com ipb_member_id, ipb_pass_hash e igneous. Ele fica no chaveiro do sistema e não é mostrado de novo.",
+    "cookiesOptional": "(somente para exhentai)",
+    "description": "Baixe várias galerias para um novo projeto, na ordem indicada. Links do e-hentai, exhentai e nhentai são aceitos.",
+    "downloading": "Baixando páginas…",
+    "error": "A importação falhou. Verifique os links e tente novamente.",
+    "galleries": "Galerias",
+    "import": "Importar",
+    "importing": "Importando…",
+    "importingPages": "Criando o projeto…",
+    "inspecting": "Lendo as informações da galeria…",
+    "name": "Nome do projeto",
+    "nameOptional": "(opcional)",
+    "pages": "Páginas",
+    "progress": "Progresso da importação",
+    "success": "Projeto criado",
+    "title": "Importar galerias",
+    "urls": "Links das galerias (um por linha, até 20)",
+    "urlsPlaceholder": "https://e-hentai.org/g/123456/abcdef0123/\nhttps://nhentai.net/g/654321/"
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { receiveDownload, useKoharuStore } from '@/lib/store'
+import { defaultShortcuts, receiveDownload, useKoharuStore } from '@/lib/store'
 
 describe('editor state', () => {
   it('retains failed downloads until they are dismissed', () => {
@@ -20,5 +20,14 @@ describe('editor state', () => {
 
     useKoharuStore.getState().dismissDownload(9)
     expect(useKoharuStore.getState().downloads[9]).toBeUndefined()
+  })
+
+  it('defaults the paint brush to pure white', () => {
+    expect(useKoharuStore.getState().brush.color).toBe('#FFFFFF')
+  })
+
+  it('gives every shortcut action its own default key', () => {
+    const keys = Object.values(defaultShortcuts)
+    expect(new Set(keys).size).toBe(keys.length)
   })
 })

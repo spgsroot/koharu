@@ -27,11 +27,13 @@ describe('StartView', () => {
     vi.spyOn(commands, 'getProject').mockImplementation(async () =>
       opened
         ? {
+            session: 'volume-session',
             name: 'Volume 1',
             revision: 0,
             active_page: null,
             can_undo: false,
             can_redo: false,
+            history: { entries: [], snapshots: [], cursor: 0 },
           }
         : null,
     )
@@ -57,11 +59,13 @@ describe('StartView', () => {
     vi.spyOn(commands, 'getProject').mockImplementation(async () =>
       opened
         ? {
+            session: 'blue-session',
             name: 'Blue Archive',
             revision: 1,
             active_page: null,
             can_undo: false,
             can_redo: false,
+            history: { entries: [], snapshots: [], cursor: 0 },
           }
         : null,
     )

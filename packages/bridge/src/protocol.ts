@@ -13,24 +13,31 @@ export const commands = {
 	runAgent: (prompt: string, onEvent: Channel<Event>) => __TAURI_INVOKE<RunId>("run_agent", { prompt, onEvent }),
 	cancelAgent: (run: RunId) => __TAURI_INVOKE<null>("cancel_agent", { run }),
 	subscribe: (onCanvas: Channel<CanvasState>, onJob: Channel<Job>, onDownload: Channel<Download>, onResources: Channel<ModelResources>, onProject: Channel<{
+	/**  Fresh for every opening, including a reopening of the same project file. */
+	session: EntityId,
 	name: string,
 	revision: Revision,
 	active_page: EntityId | null,
 	can_undo: boolean,
 	can_redo: boolean,
-} | null>) => __TAURI_INVOKE<StartupState>("subscribe", { onCanvas: mapChannel(onCanvas, (v) => ({...v,revision:v.revision==null?v.revision:v.revision})), onJob, onDownload, onResources: mapChannel(onResources, (v) => ({...v,devices:v.devices.map(i=>({...i,memory_budget:i.memory_budget==null?i.memory_budget:i.memory_budget,memory_used:i.memory_used==null?i.memory_used:i.memory_used,utilization:i.utilization==null?i.utilization:i.utilization}))})), onProject }).then((v) => (({...v,preferences:({...v.preferences,pipeline:({...v.preferences.pipeline,translation:({...v.preferences.pipeline.translation,generation:({...v.preferences.pipeline.translation.generation,temperature:v.preferences.pipeline.translation.generation.temperature==null?v.preferences.pipeline.translation.generation.temperature:v.preferences.pipeline.translation.generation.temperature,top_p:v.preferences.pipeline.translation.generation.top_p==null?v.preferences.pipeline.translation.generation.top_p:v.preferences.pipeline.translation.generation.top_p,min_p:v.preferences.pipeline.translation.generation.min_p==null?v.preferences.pipeline.translation.generation.min_p:v.preferences.pipeline.translation.generation.min_p,repeat_penalty:v.preferences.pipeline.translation.generation.repeat_penalty==null?v.preferences.pipeline.translation.generation.repeat_penalty:v.preferences.pipeline.translation.generation.repeat_penalty,frequency_penalty:v.preferences.pipeline.translation.generation.frequency_penalty==null?v.preferences.pipeline.translation.generation.frequency_penalty:v.preferences.pipeline.translation.generation.frequency_penalty,presence_penalty:v.preferences.pipeline.translation.generation.presence_penalty==null?v.preferences.pipeline.translation.generation.presence_penalty:v.preferences.pipeline.translation.generation.presence_penalty})}),processor:({...v.preferences.pipeline.processor,"koharu-layout-rfdetr-seg-2xl":v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"]==null?v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"]:({...v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"],text_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold==null?v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold,bubble_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold==null?v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold,panel_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold==null?v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold})})})}),jobs:v.jobs.map(i=>i),canvas:({...v.canvas,revision:v.canvas.revision==null?v.canvas.revision:v.canvas.revision})}) as typeof v)),
+	history: HistoryView,
+} | null>) => __TAURI_INVOKE<StartupState>("subscribe", { onCanvas: mapChannel(onCanvas, (v) => ({...v,revision:v.revision==null?v.revision:v.revision})), onJob: mapChannel(onJob, (v) => ({...v,policy_rejected_pages:v.policy_rejected_pages.map(i=>i)})), onDownload, onResources: mapChannel(onResources, (v) => ({...v,devices:v.devices.map(i=>({...i,memory_budget:i.memory_budget==null?i.memory_budget:i.memory_budget,memory_used:i.memory_used==null?i.memory_used:i.memory_used,utilization:i.utilization==null?i.utilization:i.utilization}))})), onProject }).then((v) => (({...v,preferences:({...v.preferences,pipeline:({...v.preferences.pipeline,translation:({...v.preferences.pipeline.translation,generation:({...v.preferences.pipeline.translation.generation,temperature:v.preferences.pipeline.translation.generation.temperature==null?v.preferences.pipeline.translation.generation.temperature:v.preferences.pipeline.translation.generation.temperature,top_p:v.preferences.pipeline.translation.generation.top_p==null?v.preferences.pipeline.translation.generation.top_p:v.preferences.pipeline.translation.generation.top_p,min_p:v.preferences.pipeline.translation.generation.min_p==null?v.preferences.pipeline.translation.generation.min_p:v.preferences.pipeline.translation.generation.min_p,repeat_penalty:v.preferences.pipeline.translation.generation.repeat_penalty==null?v.preferences.pipeline.translation.generation.repeat_penalty:v.preferences.pipeline.translation.generation.repeat_penalty,frequency_penalty:v.preferences.pipeline.translation.generation.frequency_penalty==null?v.preferences.pipeline.translation.generation.frequency_penalty:v.preferences.pipeline.translation.generation.frequency_penalty,presence_penalty:v.preferences.pipeline.translation.generation.presence_penalty==null?v.preferences.pipeline.translation.generation.presence_penalty:v.preferences.pipeline.translation.generation.presence_penalty})}),processor:({...v.preferences.pipeline.processor,"koharu-layout-rfdetr-seg-2xl":v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"]==null?v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"]:({...v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"],text_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold==null?v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold,bubble_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold==null?v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold,panel_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold==null?v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold:v.preferences.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold})})})}),jobs:v.jobs.map(i=>({...i,policy_rejected_pages:i.policy_rejected_pages.map(i=>i)})),canvas:({...v.canvas,revision:v.canvas.revision==null?v.canvas.revision:v.canvas.revision})}) as typeof v)),
 	getProject: () => __TAURI_INVOKE<{
+	/**  Fresh for every opening, including a reopening of the same project file. */
+	session: EntityId,
 	name: string,
 	revision: Revision,
 	active_page: EntityId | null,
 	can_undo: boolean,
 	can_redo: boolean,
+	history: HistoryView,
 } | null>("get_project"),
 	getPages: () => __TAURI_INVOKE<PageSummary[]>("get_pages").then((v) => (v.map(i=>i) as typeof v)),
 	getPage: () => __TAURI_INVOKE<{
 	id: EntityId,
 	label: string,
 	size: PageSize,
+	censor_mask_asset: string | null,
 	layers: Layer[],
 	regions: AnalysisRegion[],
 } | null>("get_page").then((v) => (v==null?v:({...v,regions:v.regions.map(i=>({...i,geometry:({...i.geometry,points:i.geometry.points.map(i=>i)})}))}) as typeof v)),
@@ -40,7 +47,39 @@ export const commands = {
 	deleteProject: (name: string) => __TAURI_INVOKE<null>("delete_project", { name }),
 	closeProject: () => __TAURI_INVOKE<null>("close_project"),
 	importPages: (source: PageImportSource) => __TAURI_INVOKE<null>("import_pages", { source }),
+	importGalleries: (request: GalleryImportRequest, onEvent: Channel<GalleryImportProgress>) => __TAURI_INVOKE<GalleryImportResult>("import_galleries", { request, onEvent }),
 	selectPage: (page: EntityId) => __TAURI_INVOKE<PageSelection>("select_page", { page }).then((v) => (({...v,page:({...v.page,regions:v.page.regions.map(i=>({...i,geometry:({...i.geometry,points:i.geometry.points.map(i=>i)})}))})}) as typeof v)),
+	listOrders: (filter: OrderFilter, today: {
+	start: number,
+	end: number,
+} | null) => __TAURI_INVOKE<OrderListItem[]>("list_orders", { filter: ({...filter,deadline_from:filter.deadline_from==null?filter.deadline_from:filter.deadline_from,deadline_to:filter.deadline_to==null?filter.deadline_to:filter.deadline_to}), today: today==null?today:today }).then((v) => (v.map(i=>({...i,...({...i,deadline_at:i.deadline_at==null?i.deadline_at:i.deadline_at})})) as typeof v)),
+	ordersSummary: (today: {
+	start: number,
+	end: number,
+} | null) => __TAURI_INVOKE<OrdersSummary>("orders_summary", { today: today==null?today:today }),
+	ordersActor: () => __TAURI_INVOKE<string>("orders_actor"),
+	getOrder: (id: string) => __TAURI_INVOKE<OrderDetail>("get_order", { id }).then((v) => (({...({...v,stages:v.stages.map(i=>({...i,started_at:i.started_at==null?i.started_at:i.started_at,completed_at:i.completed_at==null?i.completed_at:i.completed_at}))}),...({...v,...({...v,deadline_at:v.deadline_at==null?v.deadline_at:v.deadline_at})})}) as typeof v)),
+	createOrder: (input: NewOrder) => __TAURI_INVOKE<OrderDetail>("create_order", { input: ({...input,deadline_at:input.deadline_at==null?input.deadline_at:input.deadline_at}) }).then((v) => (({...({...v,stages:v.stages.map(i=>({...i,started_at:i.started_at==null?i.started_at:i.started_at,completed_at:i.completed_at==null?i.completed_at:i.completed_at}))}),...({...v,...({...v,deadline_at:v.deadline_at==null?v.deadline_at:v.deadline_at})})}) as typeof v)),
+	updateOrder: (id: string, patch: OrderPatch) => __TAURI_INVOKE<OrderDetail>("update_order", { id, patch: ({...patch,deadline_at:patch.deadline_at==null?patch.deadline_at:patch.deadline_at==null?patch.deadline_at:patch.deadline_at}) }).then((v) => (({...({...v,stages:v.stages.map(i=>({...i,started_at:i.started_at==null?i.started_at:i.started_at,completed_at:i.completed_at==null?i.completed_at:i.completed_at}))}),...({...v,...({...v,deadline_at:v.deadline_at==null?v.deadline_at:v.deadline_at})})}) as typeof v)),
+	setOrderLifecycle: (id: string, lifecycle: Lifecycle) => __TAURI_INVOKE<OrderDetail>("set_order_lifecycle", { id, lifecycle }).then((v) => (({...({...v,stages:v.stages.map(i=>({...i,started_at:i.started_at==null?i.started_at:i.started_at,completed_at:i.completed_at==null?i.completed_at:i.completed_at}))}),...({...v,...({...v,deadline_at:v.deadline_at==null?v.deadline_at:v.deadline_at})})}) as typeof v)),
+	attachOrderProject: (id: string, projectName: string | null) => __TAURI_INVOKE<OrderDetail>("attach_order_project", { id, projectName }).then((v) => (({...({...v,stages:v.stages.map(i=>({...i,started_at:i.started_at==null?i.started_at:i.started_at,completed_at:i.completed_at==null?i.completed_at:i.completed_at}))}),...({...v,...({...v,deadline_at:v.deadline_at==null?v.deadline_at:v.deadline_at})})}) as typeof v)),
+	setOrderStage: (id: string, stage: StageName, state: StageState) => __TAURI_INVOKE<OrderDetail>("set_order_stage", { id, stage, state }).then((v) => (({...({...v,stages:v.stages.map(i=>({...i,started_at:i.started_at==null?i.started_at:i.started_at,completed_at:i.completed_at==null?i.completed_at:i.completed_at}))}),...({...v,...({...v,deadline_at:v.deadline_at==null?v.deadline_at:v.deadline_at})})}) as typeof v)),
+	addOrderNote: (orderId: string, input: NewNote, blockStage: boolean) => __TAURI_INVOKE<OrderDetail>("add_order_note", { orderId, input, blockStage }).then((v) => (({...({...v,stages:v.stages.map(i=>({...i,started_at:i.started_at==null?i.started_at:i.started_at,completed_at:i.completed_at==null?i.completed_at:i.completed_at}))}),...({...v,...({...v,deadline_at:v.deadline_at==null?v.deadline_at:v.deadline_at})})}) as typeof v)),
+	resolveOrderNote: (noteId: string, resolved: boolean) => __TAURI_INVOKE<OrderDetail>("resolve_order_note", { noteId, resolved }).then((v) => (({...({...v,stages:v.stages.map(i=>({...i,started_at:i.started_at==null?i.started_at:i.started_at,completed_at:i.completed_at==null?i.completed_at:i.completed_at}))}),...({...v,...({...v,deadline_at:v.deadline_at==null?v.deadline_at:v.deadline_at})})}) as typeof v)),
+	deleteOrderNote: (noteId: string) => __TAURI_INVOKE<null>("delete_order_note", { noteId }),
+	listOrderNotes: (orderId: string) => __TAURI_INVOKE<OrderNote[]>("list_order_notes", { orderId }).then((v) => (v.map(i=>({...i,resolved_at:i.resolved_at==null?i.resolved_at:i.resolved_at})) as typeof v)),
+	listOrderActivity: (orderId: string) => __TAURI_INVOKE<ActivityEntry[]>("list_order_activity", { orderId }).then((v) => (v.map(i=>i) as typeof v)),
+	listOrderImports: (orderId: string) => __TAURI_INVOKE<ImportMeta[]>("list_order_imports", { orderId }).then((v) => (v.map(i=>({...i,applied_at:i.applied_at==null?i.applied_at:i.applied_at})) as typeof v)),
+	getTranslationImport: (id: string) => __TAURI_INVOKE<TranslationImport>("get_translation_import", { id }).then((v) => (({...v,applied_at:v.applied_at==null?v.applied_at:v.applied_at,report:({...v.report,rows:v.report.rows.map(i=>i)})}) as typeof v)),
+	exportTranslationTemplate: (orderId: string, format: TemplateFormat) => __TAURI_INVOKE<string | null>("export_translation_template", { orderId, format }),
+	beginTranslationImport: (orderId: string) => __TAURI_INVOKE<{
+	import: TranslationImport,
+	/**  The identical file was already uploaded for this order. */
+	duplicate: boolean,
+} | null>("begin_translation_import", { orderId }).then((v) => (v==null?v:({...v,import:({...v.import,applied_at:v.import.applied_at==null?v.import.applied_at:v.import.applied_at,report:({...v.import.report,rows:v.import.report.rows.map(i=>i)})})}) as typeof v)),
+	applyTranslationImport: (importId: string) => __TAURI_INVOKE<OrderDetail>("apply_translation_import", { importId }).then((v) => (({...({...v,stages:v.stages.map(i=>({...i,started_at:i.started_at==null?i.started_at:i.started_at,completed_at:i.completed_at==null?i.completed_at:i.completed_at}))}),...({...v,...({...v,deadline_at:v.deadline_at==null?v.deadline_at:v.deadline_at})})}) as typeof v)),
+	discardTranslationImport: (importId: string) => __TAURI_INVOKE<null>("discard_translation_import", { importId }),
+	exportImportReport: (importId: string) => __TAURI_INVOKE<string | null>("export_import_report", { importId }),
 	renamePage: (page: EntityId, label: string) => __TAURI_INVOKE<null>("rename_page", { page, label }),
 	deletePages: (pages: EntityId[]) => __TAURI_INVOKE<null>("delete_pages", { pages }),
 	movePage: (page: EntityId, index: number) => __TAURI_INVOKE<null>("move_page", { page, index }),
@@ -53,15 +92,44 @@ export const commands = {
 	moveLayer: (layer: EntityId, parent: EntityId, index: number) => __TAURI_INVOKE<Page>("move_layer", { layer, parent, index }).then((v) => (({...v,regions:v.regions.map(i=>({...i,geometry:({...i.geometry,points:i.geometry.points.map(i=>i)})}))}) as typeof v)),
 	undo: () => __TAURI_INVOKE<null>("undo"),
 	redo: () => __TAURI_INVOKE<null>("redo"),
+	historyGoTo: (index: number) => __TAURI_INVOKE<null>("history_go_to", { index }),
+	historyClear: () => __TAURI_INVOKE<null>("history_clear"),
+	snapshotCreate: (name: string | null) => __TAURI_INVOKE<null>("snapshot_create", { name }),
+	snapshotRestore: (id: number) => __TAURI_INVOKE<null>("snapshot_restore", { id }),
+	snapshotDelete: (id: number) => __TAURI_INVOKE<null>("snapshot_delete", { id }),
 	process: (scope: Scope, operation: Operation) => __TAURI_INVOKE<JobId>("process", { scope, operation }),
 	stopJob: (job: JobId) => __TAURI_INVOKE<null>("stop_job", { job }),
+	/**
+	 *  Current states of the given jobs, for reconciling the editor after a lost
+	 *  channel event. Jobs absent from the result are no longer known; the editor
+	 *  treats them as stopped.
+	 */
+	getJobs: (jobs: JobId[]) => __TAURI_INVOKE<Job[]>("get_jobs", { jobs }).then((v) => (v.map(i=>({...i,policy_rejected_pages:i.policy_rejected_pages.map(i=>i)})) as typeof v)),
+	/**
+	 *  Copies the selected layers; a zero count leaves the previous clipboard
+	 *  untouched.
+	 */
+	copyLayers: (layers: EntityId[]) => __TAURI_INVOKE<CopiedLayers>("copy_layers", { layers }),
+	/**
+	 *  Pastes the copied layers onto `page`, shifted by `offset`, as one history
+	 *  step. Returns the new top-level layers so the editor can select them.
+	 */
+	pasteLayers: (page: EntityId, offset: Point) => __TAURI_INVOKE<EntityId[]>("paste_layers", { page, offset }),
 	exportPages: (pages: EntityId[], format: ExportFormat) => __TAURI_INVOKE<null>("export_pages", { pages, format }),
 	getThumbnail: (page: EntityId) => __TAURI_INVOKE<ThumbnailBytes>("get_thumbnail", { page }),
+	getCensorMask: (page: EntityId) => __TAURI_INVOKE<ThumbnailBytes>("get_censor_mask", { page }),
 	getFonts: () => __TAURI_INVOKE<FontFamily[]>("get_fonts"),
 	getFontPreview: (familyName: string) => __TAURI_INVOKE<FontPreviewBytes>("get_font_preview", { familyName }),
 	savePreferences: (pipeline: PipelineConfig, providers: ProviderPreferences, typesetting: TypesettingConfig) => __TAURI_INVOKE<Preferences>("save_preferences", { pipeline: ({...pipeline,translation:({...pipeline.translation,generation:({...pipeline.translation.generation,temperature:pipeline.translation.generation.temperature==null?pipeline.translation.generation.temperature:pipeline.translation.generation.temperature,top_p:pipeline.translation.generation.top_p==null?pipeline.translation.generation.top_p:pipeline.translation.generation.top_p,min_p:pipeline.translation.generation.min_p==null?pipeline.translation.generation.min_p:pipeline.translation.generation.min_p,repeat_penalty:pipeline.translation.generation.repeat_penalty==null?pipeline.translation.generation.repeat_penalty:pipeline.translation.generation.repeat_penalty,frequency_penalty:pipeline.translation.generation.frequency_penalty==null?pipeline.translation.generation.frequency_penalty:pipeline.translation.generation.frequency_penalty,presence_penalty:pipeline.translation.generation.presence_penalty==null?pipeline.translation.generation.presence_penalty:pipeline.translation.generation.presence_penalty})}),processor:({...pipeline.processor,"koharu-layout-rfdetr-seg-2xl":pipeline.processor["koharu-layout-rfdetr-seg-2xl"]==null?pipeline.processor["koharu-layout-rfdetr-seg-2xl"]:({...pipeline.processor["koharu-layout-rfdetr-seg-2xl"],text_threshold:pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold==null?pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold:pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold,bubble_threshold:pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold==null?pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold:pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold,panel_threshold:pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold==null?pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold:pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold})})}), providers, typesetting }).then((v) => (({...v,pipeline:({...v.pipeline,translation:({...v.pipeline.translation,generation:({...v.pipeline.translation.generation,temperature:v.pipeline.translation.generation.temperature==null?v.pipeline.translation.generation.temperature:v.pipeline.translation.generation.temperature,top_p:v.pipeline.translation.generation.top_p==null?v.pipeline.translation.generation.top_p:v.pipeline.translation.generation.top_p,min_p:v.pipeline.translation.generation.min_p==null?v.pipeline.translation.generation.min_p:v.pipeline.translation.generation.min_p,repeat_penalty:v.pipeline.translation.generation.repeat_penalty==null?v.pipeline.translation.generation.repeat_penalty:v.pipeline.translation.generation.repeat_penalty,frequency_penalty:v.pipeline.translation.generation.frequency_penalty==null?v.pipeline.translation.generation.frequency_penalty:v.pipeline.translation.generation.frequency_penalty,presence_penalty:v.pipeline.translation.generation.presence_penalty==null?v.pipeline.translation.generation.presence_penalty:v.pipeline.translation.generation.presence_penalty})}),processor:({...v.pipeline.processor,"koharu-layout-rfdetr-seg-2xl":v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"]==null?v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"]:({...v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"],text_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold==null?v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold,bubble_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold==null?v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold,panel_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold==null?v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold})})})}) as typeof v)),
 	getPreferences: () => __TAURI_INVOKE<Preferences>("get_preferences").then((v) => (({...v,pipeline:({...v.pipeline,translation:({...v.pipeline.translation,generation:({...v.pipeline.translation.generation,temperature:v.pipeline.translation.generation.temperature==null?v.pipeline.translation.generation.temperature:v.pipeline.translation.generation.temperature,top_p:v.pipeline.translation.generation.top_p==null?v.pipeline.translation.generation.top_p:v.pipeline.translation.generation.top_p,min_p:v.pipeline.translation.generation.min_p==null?v.pipeline.translation.generation.min_p:v.pipeline.translation.generation.min_p,repeat_penalty:v.pipeline.translation.generation.repeat_penalty==null?v.pipeline.translation.generation.repeat_penalty:v.pipeline.translation.generation.repeat_penalty,frequency_penalty:v.pipeline.translation.generation.frequency_penalty==null?v.pipeline.translation.generation.frequency_penalty:v.pipeline.translation.generation.frequency_penalty,presence_penalty:v.pipeline.translation.generation.presence_penalty==null?v.pipeline.translation.generation.presence_penalty:v.pipeline.translation.generation.presence_penalty})}),processor:({...v.pipeline.processor,"koharu-layout-rfdetr-seg-2xl":v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"]==null?v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"]:({...v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"],text_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold==null?v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].text_threshold,bubble_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold==null?v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].bubble_threshold,panel_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold==null?v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold:v.pipeline.processor["koharu-layout-rfdetr-seg-2xl"].panel_threshold})})})}) as typeof v)),
 	getTranslationModels: () => __TAURI_INVOKE<Model[]>("get_translation_models"),
+	/**
+	 *  One page of the local inference usage journal, newest first, with totals
+	 *  over everything the filters match.
+	 * 
+	 *  The journal is local-only and stays out of `koharu_metrics`.
+	 */
+	getUsageLog: (query: UsageQuery) => __TAURI_INVOKE<UsagePage>("get_usage_log", { query: ({...query,from:query.from==null?query.from:query.from,to:query.to==null?query.to:query.to,cursor:query.cursor==null?query.cursor:query.cursor}) }).then((v) => (({...v,entries:v.entries.map(i=>({...i,settings:({...i.settings,temperature:i.settings.temperature==null?i.settings.temperature:i.settings.temperature,top_p:i.settings.top_p==null?i.settings.top_p:i.settings.top_p,frequency_penalty:i.settings.frequency_penalty==null?i.settings.frequency_penalty:i.settings.frequency_penalty,presence_penalty:i.settings.presence_penalty==null?i.settings.presence_penalty:i.settings.presence_penalty}),cost:i.cost==null?i.cost:i.cost})),next_cursor:v.next_cursor==null?v.next_cursor:v.next_cursor,totals:({...v.totals,costs:v.totals.costs.map(i=>i)})}) as typeof v)),
 	getCanvasManifest: (generation: CanvasGeneration) => __TAURI_INVOKE<CanvasBytes>("get_canvas_manifest", { generation }),
 	getCanvasResource: (generation: CanvasGeneration, resource: string) => __TAURI_INVOKE<CanvasBytes>("get_canvas_resource", { generation, resource }),
 	prepareCanvasPage: (page: EntityId) => __TAURI_INVOKE<{
@@ -75,7 +143,7 @@ export const commands = {
 	commitPaint: (expectedRevision: Revision, layer: string | null, points: Point[], brush: PaintBrush) => __TAURI_INVOKE<LayerCommit>("commit_paint", { expectedRevision, layer, points: points.map(i=>i), brush }),
 	commitErase: (expectedRevision: Revision, layer: EntityId, points: Point[], diameter: number) => __TAURI_INVOKE<LayerCommit>("commit_erase", { expectedRevision, layer, points: points.map(i=>i), diameter }),
 	commitTransform: (expectedRevision: Revision, elements: TransformFrame[]) => __TAURI_INVOKE<number | null>("commit_transform", { expectedRevision, elements }).then((v) => (v==null?v:v as typeof v)),
-	commitInpaint: (expectedRevision: Revision, points: Point[], diameter: number) => __TAURI_INVOKE<string | null>("commit_inpaint", { expectedRevision, points: points.map(i=>i), diameter }),
+	commitInpaint: (page: EntityId, expectedRevision: Revision, points: Point[], diameter: number, target: CleanupTarget) => __TAURI_INVOKE<string | null>("commit_inpaint", { page, expectedRevision, points: points.map(i=>i), diameter, target }),
 };
 
 /* Types */
@@ -84,6 +152,22 @@ export type Account = {
 	email: string | null,
 	plan: string | null,
 };
+
+/**
+ *  Audit trail entry. `kind` is a stable machine string; `payload` is a flat
+ *  details map (values rendered as strings — the trail is for humans).
+ */
+export type ActivityEntry = {
+	id: string,
+	order_id: string,
+	kind: string,
+	actor: string,
+	/**  Structured context, flattened via [`details`]. */
+	payload: { [key in string]: string },
+	created_at: number,
+};
+
+export type AgentProvider = "codex" | "xai" | "kimi";
 
 export type AgentStatus = {
 	account: Account | null,
@@ -100,7 +184,27 @@ export type AnalysisRegion = {
 	label: string | null,
 };
 
+/**
+ *  The artwork route of the inpainting stage: its selected model and the
+ *  settings it keeps for every model.
+ * 
+ *  Settings belong to the stage rather than to the model. The decensor stage
+ *  keeps its own copy, so selecting one model in both stages never shares a
+ *  prompt.
+ */
+export type ArtworkInpaintingConfig = {
+	model?: InpaintingKind,
+	"flux2-klein"?: Flux2KleinConfig,
+	"flux2-klein-9b-uncensored"?: Flux2Klein9BConfig,
+	"diffusioncreampy-animagine-xl-4"?: DiffusionCreamPyConfig,
+	"diffusioncreampy-illustrious-xl-2"?: DiffusionCreamPyConfig,
+	"rorem-mixed"?: RoremMixedConfig,
+};
+
 export type AtlasCloudConfig = Record<string, never>;
+
+/**  Why an order shows up in the attention view; the client localizes kinds. */
+export type AttentionReason = "overdue" | "due_soon" | "blocked" | "import_failed" | "import_unreviewed" | "pipeline_failed" | "ready_to_deliver" | "stale";
 
 export type Bounds = {
 	x: number,
@@ -108,6 +212,14 @@ export type Bounds = {
 	width: number,
 	height: number,
 };
+
+/**
+ *  Direct models that clean lettering inside speech bubbles.
+ * 
+ *  Bubble interiors are mostly flat fills that these models rebuild quickly, so
+ *  no generative model is selectable here.
+ */
+export type BubbleInpaintingKind = "lama" | "aot-inpainting";
 
 export type CaiyunConfig = Record<string, never>;
 
@@ -128,7 +240,37 @@ export type CanvasState = {
 	element_frames: TransformFrame[],
 };
 
+export type CensorDetectionConfig = {
+	/**  Run censor detection as part of the pipeline. */
+	enabled?: boolean,
+	detect_mosaic?: boolean,
+	threshold?: number,
+	mask_grow?: number,
+	mask_blur?: number,
+};
+
 export type ClaudeConfig = Record<string, never>;
+
+/**
+ *  Which repair a hand-painted stroke runs over exactly its painted pixels.
+ * 
+ *  Each target selects the model that repairs the stroke independently of the
+ *  others: its settings are never shared with another target, and none of them
+ *  reads the page's saved masks.
+ */
+export type CleanupTarget = 
+/**  Removes lettering with the fast model selected for speech bubbles. */
+"fast" | 
+/**
+ *  Repaints the stroke with FLUX.2 Klein 9B and the manual inpainting
+ *  profile's own prompt and settings.
+ */
+"inpainting" | 
+/**
+ *  Reconstructs censored artwork with the decensor model selected in
+ *  settings.
+ */
+"decensor";
 
 export type CodexModel = {
 	id: string,
@@ -137,8 +279,31 @@ export type CodexModel = {
 };
 
 export type Config = {
+	provider?: AgentProvider,
 	model: string | null,
 	reasoning: Reasoning,
+};
+
+/**
+ *  The kind of material being translated. Each profile has its own built-in
+ *  system prompt and its own saved replacement.
+ */
+export type ContentProfile = "hentai" | "manga" | "comic";
+
+/**
+ *  What the editor needs to place a later paste: copies pasted onto their
+ *  source page are offset so they do not hide the originals.
+ */
+export type CopiedLayers = {
+	page: EntityId,
+	count: number,
+};
+
+export type CostTotal = {
+	currency: string,
+	amount: number,
+	/**  Requests that reported a cost in this currency. */
+	requests: number,
 };
 
 export type CredentialInput = {
@@ -147,11 +312,53 @@ export type CredentialInput = {
 	clear: boolean,
 };
 
+export type CursorConfig = Record<string, never>;
+
+/**
+ *  Local-day bounds from the client (the UI owns the time zone). Falls back
+ *  to the UTC day when absent.
+ */
+export type DayBounds = {
+	start: number,
+	end: number,
+};
+
+/**
+ *  The decensor stage: its selected model and the settings it keeps for every
+ *  model it can run.
+ * 
+ *  Settings belong to the stage rather than to the model. The inpainting stage
+ *  keeps its own copy, so selecting one model in both stages never shares a
+ *  prompt.
+ */
+export type DecensorConfig = {
+	model?: DecensorKind,
+	"flux2-klein"?: Flux2KleinConfig,
+	"flux2-klein-9b-uncensored"?: Flux2Klein9BConfig,
+	"diffusioncreampy-animagine-xl-4"?: DiffusionCreamPyConfig,
+	"diffusioncreampy-illustrious-xl-2"?: DiffusionCreamPyConfig,
+	"rorem-mixed"?: RoremMixedConfig,
+};
+
+/**
+ *  Generative models that can reconstruct censored artwork.
+ * 
+ *  Direct models such as LaMa and AOT only spread surrounding pixels, so they
+ *  are not selectable here.
+ */
+export type DecensorKind = "flux2-klein-9b-uncensored" | "flux2-klein" | "diffusioncreampy-animagine-xl-4" | "diffusioncreampy-illustrious-xl-2" | "rorem-mixed";
+
 export type DeepLConfig = {
 	base_url?: string | null,
 };
 
 export type DeepSeekConfig = Record<string, never>;
+
+export type DefaultSystemPrompts = {
+	hentai: string,
+	manga: string,
+	comic: string,
+};
 
 export type DetectionModel = {
 	model: "koharu-layout-rfdetr-seg-2xl",
@@ -163,6 +370,23 @@ export type DeviceResources = {
 	memory_budget: number | null,
 	memory_used: number | null,
 	utilization: number | null,
+};
+
+export type DiffusionCreamPyConfig = {
+	endpoint?: string,
+	checkpoint?: string,
+	controlnet?: string,
+	positive_prompt?: string,
+	negative_prompt?: string,
+	seed?: number,
+	num_inference_steps?: number,
+	guidance_scale?: number,
+	denoise?: number,
+	mask_grow?: number,
+	mask_blur?: number,
+	mask_padding?: number,
+	color_match_strength?: number,
+	timeout_seconds?: number,
 };
 
 export type Download = {
@@ -183,6 +407,26 @@ export type Error = string;
 export type Event = { type: "started"; run: RunId } | { type: "text_delta"; run: RunId; delta: string } | { type: "reasoning_delta"; run: RunId; delta: string } | { type: "tool_started"; run: RunId; call_id: string; name: string } | { type: "tool_finished"; run: RunId; call_id: string; name: string; changed: boolean; output: string } | { type: "completed"; run: RunId; message: string } | { type: "failed"; run: RunId; message: string } | { type: "cancelled"; run: RunId };
 
 export type ExportFormat = "png" | "psd";
+
+/**  FLUX.2 Klein 9B settings. Every stage that runs the model keeps its own copy. */
+export type Flux2Klein9BConfig = {
+	prompt?: string,
+	num_inference_steps?: number,
+	guidance_scale?: number,
+	lora_path?: string | null,
+	lora_strength?: number,
+	/**
+	 *  Sampler seed. A fixed seed reproduces a repair; a negative one draws a
+	 *  new random seed for every generated tile.
+	 */
+	seed?: number,
+	/**
+	 *  Above zero, at most one. One generates the masked area from the prompt
+	 *  and the surrounding image; lower values keep more of the source pixels
+	 *  beneath the mask.
+	 */
+	strength?: number,
+};
 
 export type Flux2KleinConfig = {
 	prompt?: string,
@@ -230,6 +474,28 @@ export type Frame = {
 	angle_degrees: number,
 };
 
+export type GalleryImportProgress = {
+	status: GalleryImportStatus,
+	gallery: number,
+	galleries: number,
+	pages: number,
+	total_pages: number | null,
+};
+
+export type GalleryImportRequest = {
+	urls: string[],
+	name: string | null,
+	exhentai_cookies: string | null,
+};
+
+export type GalleryImportResult = {
+	project: string,
+	pages: number,
+	manifest: string,
+};
+
+export type GalleryImportStatus = "inspecting" | "downloading" | "importing";
+
 export type GeminiConfig = Record<string, never>;
 
 export type GenerationConfig = {
@@ -242,6 +508,11 @@ export type GenerationConfig = {
 	frequency_penalty?: number | null,
 	presence_penalty?: number | null,
 	reasoning?: boolean | null,
+	/**
+	 *  The level to reason at while `reasoning` is on. `None` keeps the
+	 *  provider's own default depth.
+	 */
+	reasoning_effort?: ReasoningEffort | null,
 	vision?: boolean | null,
 };
 
@@ -260,26 +531,144 @@ export type GrokConfig = Record<string, never>;
 
 export type GroupRole = "text";
 
-export type InpaintingModel = { model: "lama" } | { model: "aot-inpainting" } | {
-	model: "flux2-klein",
-} & Flux2KleinConfig | {
-	model: "rorem-mixed",
-} & RoremMixedConfig;
+export type HistoryEntryInfo = {
+	index: number,
+	name: HistoryName,
+	detail: string | null,
+	current: boolean,
+	/**
+	 *  True for states right of the cursor (Photoshop dims them; a new edit
+	 *  discards them).
+	 */
+	undone: boolean,
+};
+
+/**
+ *  Semantic name of a history state. Serialized as a snake_case tag; the
+ *  client localizes it through `history.<tag>` keys.
+ */
+export type HistoryName = "open" | "import_pages" | "rename_page" | "delete_pages" | "move_page" | "add_text" | "source_text" | "translation" | "typography" | "geometry" | "transform" | "toggle_layer" | "opacity" | "delete_layers" | "paste_layers" | "move_layer" | "brush" | "erase" | "pipeline_stage" | 
+/**  One atomic translation import applied from the orders dashboard. */
+"import_translations" | "snapshot_restore";
+
+export type HistoryView = {
+	entries: HistoryEntryInfo[],
+	snapshots: SnapshotInfo[],
+	cursor: number,
+};
+
+/**  Result of picking and parsing a translation file. */
+export type ImportBeginResult = {
+	import: TranslationImport,
+	/**  The identical file was already uploaded for this order. */
+	duplicate: boolean,
+};
+
+export type ImportMessage = {
+	severity: MessageSeverity,
+	/**  Stable key the client localizes, e.g. `unknown_segment`. */
+	kind: string,
+	detail: string,
+};
+
+/**
+ *  Import list row without the full validation report (report travels only
+ *  through the detail/preview endpoints).
+ */
+export type ImportMeta = {
+	id: string,
+	order_id: string,
+	filename: string,
+	checksum: string,
+	state: ImportState,
+	total: number,
+	accepted: number,
+	warnings: number,
+	errors: number,
+	actor: string,
+	created_at: number,
+	applied_at: number | null,
+};
+
+/**  Persisted validation result of an import attempt. */
+export type ImportReport = {
+	/**  File-level problems (headers, encoding, order mismatch). */
+	file_messages: ImportMessage[],
+	rows: ImportRow[],
+};
+
+/**  One validated spreadsheet row. */
+export type ImportRow = {
+	/**  1-based spreadsheet row number (header is row 1). */
+	row: number,
+	page: string,
+	segment_id: string,
+	source_text: string,
+	translation: string,
+	/**
+	 *  Translation value observed when the file was validated. Apply rejects
+	 *  a row when the project changed to a different value in the meantime.
+	 */
+	previous_translation: string | null,
+	translator_note: string | null,
+	review_status: string | null,
+	change: RowChange,
+	messages: ImportMessage[],
+};
+
+/**  Lifecycle of one translation import attempt. */
+export type ImportState = 
+/**  Parsed; warnings only or clean. Awaiting the admin's decision. */
+"ready" | 
+/**  Reserved for warnings-only previews; ready and needs_attention both apply. */
+"needs_attention" | 
+/**  File-level or row-level errors; apply is blocked until a fixed file is uploaded. */
+"failed" | 
+/**  Applied to the project atomically. */
+"applied";
+
+/**
+ *  The inpainting stage. Lettering inside speech bubbles and lettering over
+ *  artwork are cleaned by independently selected models.
+ */
+export type InpaintingConfig = {
+	bubbles?: BubbleInpaintingKind,
+	artwork?: ArtworkInpaintingConfig,
+	/**  The manual FLUX brush owns its prompt and sampling settings. */
+	manual?: Flux2Klein9BConfig,
+	manual_presets?: ManualInpaintingPreset[],
+};
+
+/**
+ *  Models that can clean lettering over artwork.
+ * 
+ *  Generative models repaint the covered drawing. LaMa and AOT only spread the
+ *  surrounding pixels, which is fast but smears detailed artwork.
+ */
+export type InpaintingKind = "lama" | "aot-inpainting" | "flux2-klein" | "flux2-klein-9b-uncensored" | "diffusioncreampy-animagine-xl-4" | "diffusioncreampy-illustrious-xl-2" | "rorem-mixed";
 
 export type Job = {
 	id: JobId,
+	kind: JobKind,
 	state: JobState,
 	completed: number,
 	total: number,
 	page: EntityId | null,
 	stage: Stage | null,
 	model: string | null,
+	policy_rejected_pages: number[],
 	error: string | null,
 };
 
 export type JobId = string;
 
-export type JobState = "running" | "finished" | "failed" | "stopped";
+/**
+ *  A pipeline run occupies the single pipeline slot; hand-painted repairs
+ *  queue in submission order beside it and execute concurrently with it.
+ */
+export type JobKind = "pipeline" | "cleanup";
+
+export type JobState = "queued" | "running" | "finished" | "failed" | "stopped";
 
 export type KoharuLayoutRFDetrSeg2XLConfig = {
 	text_threshold?: number | null,
@@ -304,6 +693,9 @@ export type LayerVisibility = {
 	opacity: number,
 };
 
+/**  Administrative lifecycle of an order, independent from production stages. */
+export type Lifecycle = "active" | "on_hold" | "completed" | "delivered" | "cancelled";
+
 export type LmStudioConfig = {
 	base_url?: string | null,
 };
@@ -311,6 +703,18 @@ export type LmStudioConfig = {
 export type LocalConfig = Record<string, never>;
 
 export type LoginEvent = { type: "progress"; message: string } | { type: "device_code"; verification_url: string; user_code: string };
+
+export type ManualInpaintingPreset = {
+	name: string,
+	settings: Flux2Klein9BConfig,
+};
+
+/**  Severity of an import validation message. */
+export type MessageSeverity = 
+/**  Apply remains possible. */
+"warning" | 
+/**  Apply is blocked while any error exists. */
+"error";
 
 export type MiniMaxConfig = Record<string, never>;
 
@@ -321,6 +725,9 @@ export type Model = {
 	quantizations: Quantization[],
 	vision: boolean,
 	reasoning: boolean,
+	reasoning_efforts: ReasoningEffort[],
+	/**  The provider offers no off setting: the model always reasons. */
+	reasoning_always_on: boolean,
 };
 
 export type ModelResources = {
@@ -336,7 +743,37 @@ export type ModelSelection = {
 	quantization?: string | null,
 	vision?: boolean,
 	reasoning?: boolean,
+	reasoning_efforts?: ReasoningEffort[],
+	/**  The provider offers no off setting: the model always reasons. */
+	reasoning_always_on?: boolean,
 };
+
+/**  Input for adding a note. */
+export type NewNote = {
+	kind?: NoteKind,
+	body: string,
+	author: string,
+	page_id: string | null,
+	segment_id: string | null,
+	pinned?: boolean,
+};
+
+/**  Input for creating an order. */
+export type NewOrder = {
+	/**  Explicit client-facing number; generated as `ORD-YYYY-NNNN` when omitted. */
+	number: string | null,
+	title: string,
+	client_name?: string,
+	source_language?: string,
+	target_language?: string,
+	priority?: Priority,
+	assignee: string | null,
+	deadline_at: number | null,
+	brief?: string,
+};
+
+/**  Kind of an order note. Blockers pin to the top and gate attention. */
+export type NoteKind = "internal" | "client" | "blocker" | "qa";
 
 export type OcrModel = { model: "paddleocr-vl-1.6" } | { model: "manga-ocr" } | { model: "baberu-ocr" } | { model: "hayai-ocr" };
 
@@ -350,10 +787,114 @@ export type OpenRouterConfig = Record<string, never>;
 
 export type Operation = { operation: "full" } | { operation: "through"; stage: Stage } | { operation: "only"; stage: Stage } | { operation: "stages"; stages: Stage[] };
 
+/**  The administrative order record. Document content never lives here. */
+export type Order = {
+	id: string,
+	number: string,
+	title: string,
+	client_name: string,
+	project_name: string | null,
+	source_language: string,
+	target_language: string,
+	lifecycle: Lifecycle,
+	priority: Priority,
+	assignee: string | null,
+	deadline_at: number | null,
+	brief: string,
+	created_at: number,
+	updated_at: number,
+	/**  denormalized counters synced from the linked project; never user input */
+	pages_total: number,
+	pages_prepared: number,
+	pages_translated: number,
+};
+
+/**  Full order detail: the list fields plus the stage route. */
+export type OrderDetail = {
+	stages: StageInfo[],
+} & OrderListItem;
+
+/**  Query filters for the orders table; every field ANDs. */
+export type OrderFilter = {
+	view?: OrderView,
+	search: string | null,
+	lifecycle: Lifecycle[] | null,
+	stage: StageName | null,
+	assignee: string | null,
+	client: string | null,
+	has_blocker: boolean | null,
+	import_state: ImportState | null,
+	deadline_from: number | null,
+	deadline_to: number | null,
+	/**  Actor for the `mine` view; resolved by the caller. */
+	actor: string | null,
+};
+
+/**  An order row enriched with computed state for the dashboard table. */
+export type OrderListItem = {
+	/**  First stage not yet done; `done` orders keep the delivery stage. */
+	current_stage: StageName,
+	current_stage_state: StageState,
+	open_blockers: number,
+	last_import_state: ImportState | null,
+	project_available: boolean,
+	attention: AttentionReason[],
+} & Order;
+
+/**  A journal entry; notes are append-only apart from resolution/deletion. */
+export type OrderNote = {
+	id: string,
+	order_id: string,
+	kind: NoteKind,
+	body: string,
+	author: string,
+	/**  Layer entity of the referenced page's segment, serialized UUID. */
+	page_id: string | null,
+	segment_id: string | null,
+	pinned: boolean,
+	created_at: number,
+	resolved_at: number | null,
+	resolved_by: string | null,
+};
+
+/**
+ *  Editable order metadata. `None` fields stay unchanged; for optional
+ *  columns the double option distinguishes "leave" from "clear".
+ */
+export type OrderPatch = {
+	number: string | null,
+	title: string | null,
+	client_name: string | null,
+	source_language: string | null,
+	target_language: string | null,
+	priority: Priority | null,
+	assignee: string | null,
+	deadline_at: number | null,
+	brief: string | null,
+};
+
+/**  Saved views of the orders dashboard. */
+export type OrderView = 
+/**  Everything needing action right now; the default landing view. */
+"attention" | 
+/**  Assigned to the local actor. */
+"mine" | 
+/**  Deadline today. */
+"today" | "all";
+
+/**  Actionable dashboard summary; every chip doubles as a filter. */
+export type OrdersSummary = {
+	overdue: number,
+	due_today: number,
+	blocked: number,
+	ready: number,
+};
+
 export type Page = {
 	id: EntityId,
 	label: string,
 	size: PageSize,
+	censor_mask_asset: string | null,
 	layers: Layer[],
 	regions: AnalysisRegion[],
 };
@@ -387,11 +928,20 @@ export type PipelineConfig = {
 	detection: DetectionModel,
 	ocr: OcrModel,
 	translation: TranslationConfig,
-	inpainting: InpaintingModel,
 	/**
-	 *  Settings for every model are kept independently of the active model.
-	 *  The active stage fields above only select which profile is used.
+	 *  Removes lettering. Speech bubbles and artwork select their models
+	 *  independently, and the stage owns its settings independently of the
+	 *  decensor stage.
 	 */
+	inpainting: InpaintingConfig,
+	/**
+	 *  Reconstructs censored areas. Owns its model settings independently of
+	 *  the inpainting stage.
+	 */
+	decensor: DecensorConfig,
+	/**  Finds obscured areas and saves their mask. */
+	censor_detection: CensorDetectionConfig,
+	/**  Detection settings, kept independently of the active model. */
 	processor: ProcessorConfig,
 };
 
@@ -405,29 +955,53 @@ export type Preferences = {
 	providers: ProviderPreferences,
 	typesetting: TypesettingConfig,
 	languages: LanguageChoice[],
+	ui: UiConfig,
+	/**  Built-in prompt templates shown when a profile has no saved prompt. */
+	default_system_prompts: DefaultSystemPrompts,
+	default_manual_inpainting_presets: ManualInpaintingPreset[],
 };
 
+/**  Client-visible urgency of an order. */
+export type Priority = "normal" | "high" | "urgent";
+
+/**
+ *  Detection settings kept independently of the active model. The generative
+ *  stages keep their own settings inside their stage configuration.
+ */
 export type ProcessorConfig = {
 	"koharu-layout-rfdetr-seg-2xl"?: KoharuLayoutRFDetrSeg2XLConfig | null,
-	"flux2-klein"?: Flux2KleinConfig | null,
-	"rorem-mixed"?: RoremMixedConfig | null,
 };
 
 export type ProjectInfo = {
+	/**  Fresh for every opening, including a reopening of the same project file. */
+	session: EntityId,
 	name: string,
 	revision: Revision,
 	active_page: EntityId | null,
 	can_undo: boolean,
 	can_redo: boolean,
+	history: HistoryView,
 };
 
 export type ProjectSummary = {
 	name: string,
 };
 
-export type Provider = "local" | "atlas-cloud" | "openai" | "gemini" | "claude" | "grok" | "minimax" | "deepseek" | "openai-compatible" | "openrouter" | "lm-studio" | "deepl" | "google-cloud-translation" | "caiyun";
+export type Provider = "local" | "atlas-cloud" | "openai" | "gemini" | "claude" | "grok" | "cursor" | "minimax" | "deepseek" | "openai-compatible" | "openrouter" | "lm-studio" | "deepl" | "google-cloud-translation" | "caiyun";
 
-export type ProviderConfig = { provider: "local"; settings: LocalConfig } | { provider: "atlas-cloud"; settings: AtlasCloudConfig } | { provider: "openai"; settings: OpenAiConfig } | { provider: "gemini"; settings: GeminiConfig } | { provider: "claude"; settings: ClaudeConfig } | { provider: "grok"; settings: GrokConfig } | { provider: "minimax"; settings: MiniMaxConfig } | { provider: "deepseek"; settings: DeepSeekConfig } | { provider: "openai-compatible"; settings: OpenAiCompatibleConfig } | { provider: "openrouter"; settings: OpenRouterConfig } | { provider: "lm-studio"; settings: LmStudioConfig } | { provider: "deepl"; settings: DeepLConfig } | { provider: "google-cloud-translation"; settings: GoogleCloudConfig } | { provider: "caiyun"; settings: CaiyunConfig };
+export type ProviderConfig = { provider: "local"; settings: LocalConfig } | { provider: "atlas-cloud"; settings: AtlasCloudConfig } | { provider: "openai"; settings: OpenAiConfig } | { provider: "gemini"; settings: GeminiConfig } | { provider: "claude"; settings: ClaudeConfig } | { provider: "grok"; settings: GrokConfig } | { provider: "cursor"; settings: CursorConfig } | { provider: "minimax"; settings: MiniMaxConfig } | { provider: "deepseek"; settings: DeepSeekConfig } | { provider: "openai-compatible"; settings: OpenAiCompatibleConfig } | { provider: "openrouter"; settings: OpenRouterConfig } | { provider: "lm-studio"; settings: LmStudioConfig } | { provider: "deepl"; settings: DeepLConfig } | { provider: "google-cloud-translation"; settings: GoogleCloudConfig } | { provider: "caiyun"; settings: CaiyunConfig };
+
+/**
+ *  A cost the provider itself put in its response. Koharu never derives one
+ *  from a price list, so a request without this has an unknown cost.
+ */
+export type ProviderCost = {
+	amount: number,
+	/**  ISO 4217 code, or the provider's own unit (for example `credits`). */
+	currency: string,
+	/**  The response field the amount was read from, such as `usage.cost`. */
+	source: string,
+};
 
 export type ProviderPreference = {
 	name: string,
@@ -448,12 +1022,49 @@ export type RasterLayerKind = "cleanup" | "paint";
 
 export type Reasoning = "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
 
+/**
+ *  How hard a model reasons while reasoning is on.
+ * 
+ *  Providers document different subsets of these levels, so a level is only
+ *  valid for a model that lists it in [`Model::reasoning_efforts`]. Turning
+ *  reasoning off is [`GenerationConfig::reasoning`]; `none` is never a level.
+ */
+export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
+/**
+ *  Generation settings as they were sent on the wire. A provider that ignores
+ *  a setting reports it as `None`.
+ */
+export type RequestSettings = {
+	reasoning: boolean | null,
+	/**
+	 *  The reasoning level label the provider received, in its own vocabulary.
+	 *  `None` when the provider's default applied.
+	 */
+	reasoning_effort: string | null,
+	temperature: number | null,
+	top_p: number | null,
+	top_k: number | null,
+	max_tokens: number | null,
+	frequency_penalty: number | null,
+	presence_penalty: number | null,
+};
+
 export type Revision = number;
 
 export type RoremMixedConfig = {
 	prompt?: string,
 	negative_prompt?: string,
 };
+
+/**  How a row's translation relates to the current project state. */
+export type RowChange = 
+/**  No translation existed before. */
+"new" | 
+/**  Differs from the current translation; apply overwrites. */
+"changed" | 
+/**  Identical to the current translation; apply is a no-op for this row. */
+"unchanged";
 
 export type RunId = string;
 
@@ -462,18 +1073,49 @@ export type Scope = { scope: "project" } | { scope: "pages"; value: EntityId[] }
 	bounds: Bounds,
 } } | { scope: "entities"; value: EntityId[] };
 
+export type SnapshotInfo = {
+	id: number,
+	name: string,
+};
+
 export type SourceText = {
 	text: string,
 	language: string | null,
 };
 
-export type Stage = "detection" | "ocr" | "translation" | "inpainting";
+export type Stage = "detection" | "ocr" | "translation" | "censor_detection" | "inpainting" | "decensor";
+
+export type StageInfo = {
+	stage: StageName,
+	state: StageState,
+	started_at: number | null,
+	completed_at: number | null,
+};
+
+/**  Fixed production route. The order of [`StageName::ALL`] defines the pipeline. */
+export type StageName = "intake" | "preparation" | "translation" | "editing" | "typesetting" | "qa" | "delivery";
+
+/**  Per-stage production state. */
+export type StageState = "not_started" | "in_progress" | "blocked" | "done";
 
 export type StartupState = {
 	preferences: Preferences,
 	jobs: Job[],
 	canvas: CanvasState,
 };
+
+/**
+ *  Saved replacements for the built-in translation prompts, one per content
+ *  profile. A missing or blank entry uses that profile's built-in prompt.
+ */
+export type SystemPrompts = {
+	hentai: string | null,
+	manga: string | null,
+	comic: string | null,
+};
+
+/**  `.xlsx` is the primary exchange format; `.csv` the lossless backup. */
+export type TemplateFormat = "xlsx" | "csv";
 
 export type TextAlignment = "Start" | "Center" | "End" | "Justify";
 
@@ -489,6 +1131,44 @@ export type TextLayoutKind = "point" | "paragraph";
 
 export type ThumbnailBytes = number[];
 
+/**
+ *  Sum of one counter over the requests that reported it.
+ * 
+ *  Requests that did not report the counter are neither zero nor part of
+ *  `sum`; they are `UsageTotals::requests - known`.
+ */
+export type TokenTotal = {
+	sum: number,
+	known: number,
+};
+
+/**
+ *  Token counters exactly as the provider reported them, normalized so that
+ *  subsets are never double counted.
+ * 
+ *  `None` means the provider did not report the counter; it is never zero.
+ * 
+ *  * `input` includes `cache_read`, `cache_write`, `input_audio` and
+ *    `input_image`.
+ *  * `output` includes `reasoning` and `output_audio`.
+ *  * `total` is the provider's own total, or `input + output` when the
+ *    provider omits it and both are known.
+ * 
+ *  A sum over several requests must add `input`, `output` and `total` only;
+ *  the subset counters are reported next to them, never on top of them.
+ */
+export type TokenUsage = {
+	input: number | null,
+	output: number | null,
+	total: number | null,
+	reasoning: number | null,
+	cache_read: number | null,
+	cache_write: number | null,
+	input_audio: number | null,
+	input_image: number | null,
+	output_audio: number | null,
+};
+
 export type TransformFrame = {
 	element: EntityId,
 	frame: Frame,
@@ -502,8 +1182,37 @@ export type Translation = {
 export type TranslationConfig = {
 	model: ModelSelection,
 	generation: GenerationConfig,
+	source_language: string,
 	target_language: string,
+	/**  Profile used by runs that do not name their own, such as editor runs. */
+	content_profile: ContentProfile,
+	system_prompts: SystemPrompts,
 	instructions: string | null,
+	validators: TranslationValidationRule[],
+};
+
+/**  One translation import attempt, persisted so previews survive restarts. */
+export type TranslationImport = {
+	id: string,
+	order_id: string,
+	filename: string,
+	/**  blake3 hex of the uploaded file; deduplicates repeat uploads. */
+	checksum: string,
+	state: ImportState,
+	total: number,
+	/**  Rows that will (or did) apply: total minus rows with errors. */
+	accepted: number,
+	warnings: number,
+	errors: number,
+	actor: string,
+	created_at: number,
+	applied_at: number | null,
+	report: ImportReport,
+};
+
+export type TranslationValidationRule = {
+	name: string,
+	pattern: string,
 };
 
 export type TypesettingConfig = {
@@ -526,6 +1235,150 @@ export type Typography = {
 export type TypographyUpdate = {
 	layer: EntityId,
 	typography: Typography,
+};
+
+export type UiConfig = {
+	orders?: boolean,
+};
+
+/**  What the request was about. Identifiers are opaque; text is never recorded. */
+export type UsageContext = {
+	project_id: string | null,
+	page_id: string | null,
+	job_id: string | null,
+	source_language: string | null,
+	target_language: string | null,
+	segments: number | null,
+	images: number | null,
+	context_entries: number | null,
+};
+
+export type UsageModel = {
+	provider: string,
+	model: string,
+};
+
+/**  What kind of work an inference request served. */
+export type UsageOperation = "translation" | "agent" | "ocr";
+
+/**
+ *  How a request ended. Everything except `Succeeded` is a failure, but a
+ *  failed request may still carry usage the provider billed.
+ */
+export type UsageOutcome = "succeeded" | 
+/**  The request never produced a response (connection, TLS, DNS). */
+"network_error" | "timeout" | 
+/**  Non-success HTTP status other than quota and policy rejections. */
+"http_error" | "quota_exceeded" | "policy_rejected" | 
+/**  HTTP success whose body reported a provider-level error. */
+"provider_error" | 
+/**  HTTP success whose body could not be decoded. */
+"decode_error" | 
+/**  A decoded response that did not yield usable translated output. */
+"invalid_output" | 
+/**  Usable output that the configured translation validator rejected. */
+"validation_rejected" | 
+/**  The response ended before it was complete. */
+"incomplete" | "cancelled";
+
+/**  One page of the journal, newest first, with totals for the whole filter. */
+export type UsagePage = {
+	entries: UsageRecord[],
+	/**  Pass back as [`UsageQuery::cursor`] for the next older page. */
+	next_cursor: number | null,
+	has_more: boolean,
+	/**
+	 *  Aggregates over every record matching the filters, ignoring the cursor
+	 *  and the page size.
+	 */
+	totals: UsageTotals,
+	/**  Every provider in the journal, regardless of the filters. */
+	providers: string[],
+	/**  Every requested model in the journal, regardless of the filters. */
+	models: UsageModel[],
+};
+
+/**
+ *  Filters and paging for [`UsageJournal::query`](crate::UsageJournal::query).
+ *  Every filter is optional and filters combine with AND.
+ */
+export type UsageQuery = {
+	provider?: string | null,
+	/**  Matches the model that was requested. */
+	model?: string | null,
+	operation?: UsageOperation | null,
+	/**  `true` keeps only succeeded requests, `false` only failed ones. */
+	succeeded?: boolean | null,
+	/**  Inclusive lower bound on `started_at`, in Unix milliseconds. */
+	from?: number | null,
+	/**  Exclusive upper bound on `started_at`, in Unix milliseconds. */
+	to?: number | null,
+	/**  The `next_cursor` of the previous page. */
+	cursor?: number | null,
+	/**  Page size; defaults to 100 and is capped at 500. */
+	limit?: number | null,
+};
+
+/**
+ *  One inference request attempt.
+ * 
+ *  Prompts, model output, images, credentials, reasoning text and provider
+ *  error messages are never part of a record.
+ */
+export type UsageRecord = {
+	/**  Opaque, time-ordered identifier. */
+	id: string,
+	/**  When the request was sent, in milliseconds since the Unix epoch. */
+	started_at: number,
+	operation: UsageOperation,
+	/**  Stable provider identifier, such as `openai`, `local` or `codex`. */
+	provider: string,
+	requested_model: string | null,
+	/**  The model the provider says served the request. */
+	resolved_model: string | null,
+	provider_request_id: string | null,
+	provider_response_id: string | null,
+	outcome: UsageOutcome,
+	/**  A short machine-readable provider error code, never a message. */
+	error_code: string | null,
+	http_status: number | null,
+	latency_ms: number | null,
+	/**  Zero-based validation attempt of the logical request. */
+	attempt: number,
+	/**  Zero-based resend of the same HTTP request after a transient failure. */
+	transport_retry: number,
+	settings: RequestSettings,
+	context: UsageContext,
+	tokens: TokenUsage,
+	cost: ProviderCost | null,
+};
+
+/**
+ *  Aggregates over the requests matching a query.
+ * 
+ *  `reasoning` is part of `output`, and `cache_read`, `cache_write`,
+ *  `input_audio` and `input_image` are part of `input`: show them next to
+ *  those sums and never add them to `input`, `output` or `total`.
+ */
+export type UsageTotals = {
+	requests: number,
+	succeeded: number,
+	failed: number,
+	input: TokenTotal,
+	output: TokenTotal,
+	total: TokenTotal,
+	reasoning: TokenTotal,
+	cache_read: TokenTotal,
+	cache_write: TokenTotal,
+	input_audio: TokenTotal,
+	input_image: TokenTotal,
+	output_audio: TokenTotal,
+	/**  Requests that reported none of `input`, `output` and `total`. */
+	requests_without_usage: number,
+	/**  Requests whose provider reported no cost. */
+	requests_without_cost: number,
+	/**  One entry per currency; currencies are never mixed. */
+	costs: CostTotal[],
 };
 
 export type WritingMode = "Horizontal" | "Vertical";

@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { TitleBar } from '@/components/app/TitleBar'
 import { Editor } from '@/components/editor/Editor'
+import OrdersView from '@/components/orders/OrdersView'
 import { SettingsPage } from '@/components/preferences/SettingsPage'
 import { StartView } from '@/components/start/StartView'
 import { useProject } from '@/lib/queries'
-import { useKoharuStore } from '@/lib/store'
+import { receiveProjectInfo, useKoharuStore } from '@/lib/store'
 import { cn } from '@koharu/ui/lib/utils'
 
 export function KoharuApp() {
@@ -17,16 +18,30 @@ export function KoharuApp() {
   const selectedPages = useKoharuStore((state) => state.selectedPages)
   const selectPages = useKoharuStore((state) => state.selectPages)
   const selectLayers = useKoharuStore((state) => state.selectLayers)
+  const view = useKoharuStore((state) => state.view)
+  const ordersEnabled = useKoharuStore((state) => state.preferences?.ui.orders ?? false)
   const projectLoaded = project !== undefined
-  const settingsOpen = useKoharuStore((state) => state.settingsOpen)
   const activePage = project?.active_page
-  const editorOpen = project !== undefined && project !== null && !settingsOpen
+  const editorOpen = view === 'start' && project !== undefined && project !== null
+  const projectOpenRef = useRef(false)
 
   useEffect(() => {
     if (!projectLoaded || selectedPages.length > 0) return
     selectPages(activePage ? [activePage] : [])
     selectLayers([])
   }, [activePage, projectLoaded, selectLayers, selectPages, selectedPages.length])
+
+  useEffect(() => {
+    if (project === undefined) return
+    if (project === null) {
+      projectOpenRef.current = false
+      return
+    }
+    if (!projectOpenRef.current) {
+      projectOpenRef.current = true
+      receiveProjectInfo(project)
+    }
+  }, [project])
 
   return (
     <div
@@ -36,7 +51,9 @@ export function KoharuApp() {
       )}
     >
       <TitleBar />
-      {settingsOpen ? (
+      {view === 'orders' && ordersEnabled ? (
+        <OrdersView />
+      ) : view === 'settings' ? (
         <SettingsPage />
       ) : project === undefined ? (
         <main className='grid min-h-0 flex-1 place-items-center bg-[var(--surface-canvas)]'>

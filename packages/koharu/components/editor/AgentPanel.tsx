@@ -5,10 +5,11 @@ import { Bot, CircleStop, LogOut, Send, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { call } from '@/lib/backend'
+import { call, refreshTranslationModels } from '@/lib/backend'
 import { pageKey, pagesKey, projectKey, refresh } from '@/lib/queries'
 import {
   commands,
+  type AgentProvider,
   type AgentStatus,
   type Config,
   type Event,
@@ -34,6 +35,17 @@ interface ConversationMessage {
   text: string
   error?: boolean
 }
+
+// Provider-specific copy lives under suffixed locale keys; Codex keeps the bare keys.
+const providerCopy = {
+  codex: { suffix: '', name: 'Codex' },
+  xai: { suffix: 'Grok', name: 'Grok' },
+  kimi: { suffix: 'Kimi', name: 'Kimi Code' },
+} as const satisfies Record<AgentProvider, { suffix: string; name: string }>
+
+// Only Grok shares its sign-in with a translation provider, so only its
+// account changes alter the available translation models.
+const refreshesTranslationModels = (provider: AgentProvider | undefined) => provider === 'xai'
 
 export function AgentPanel() {
   const { t } = useTranslation()
@@ -65,6 +77,9 @@ export function AgentPanel() {
     )
   }
 
+  const provider = status.config.provider ?? 'codex'
+  const copy = providerCopy[provider]
+
   if (!status.account) {
     const code = loginEvent?.type === 'device_code' ? loginEvent.user_code : null
     return (
@@ -72,10 +87,16 @@ export function AgentPanel() {
         <div className='grid size-11 place-items-center rounded-2xl bg-primary/10 text-primary'>
           <Sparkles className='size-5' />
         </div>
-        <h3 className='mt-4 text-sm font-semibold'>{t('agent.signInTitle')}</h3>
+        <h3 className='mt-4 text-sm font-semibold'>{t(`agent.signInTitle${copy.suffix}`)}</h3>
         <p className='mt-1 max-w-64 text-[11px] leading-5 text-muted-foreground'>
-          {t('agent.signInDescription')}
+          {t(`agent.signInDescription${copy.suffix}`)}
         </p>
+        <ProviderSelect
+          className='mt-4 w-full max-w-64'
+          value={provider}
+          disabled={loggingIn}
+          onChange={(next) => void selectProvider(next)}
+        />
         {code ? (
           <div className='mt-4 w-full max-w-64 rounded-xl border bg-muted/40 p-3'>
             <p className='text-[10px] text-muted-foreground'>{t('agent.deviceCode')}</p>
@@ -88,7 +109,7 @@ export function AgentPanel() {
           </div>
         ) : null}
         <Button className='mt-4 w-full max-w-64' disabled={loggingIn} onClick={() => void login()}>
-          {loggingIn ? t('agent.signingIn') : t('agent.signIn')}
+          {loggingIn ? t('agent.signingIn') : t(`agent.signIn${copy.suffix}`)}
         </Button>
       </div>
     )
@@ -99,9 +120,9 @@ export function AgentPanel() {
       <div className='grid shrink-0 gap-2 border-b px-3 py-2.5'>
         <div className='flex min-w-0 items-center gap-2'>
           <div className='min-w-0 flex-1'>
-            <p className='truncate text-[11px] font-medium'>{status.account.email ?? 'Codex'}</p>
+            <p className='truncate text-[11px] font-medium'>{status.account.email ?? copy.name}</p>
             <p className='truncate text-[9px] text-muted-foreground'>
-              {status.account.plan ?? t('agent.account')}
+              {status.account.plan ?? t(`agent.account${copy.suffix}`)}
             </p>
           </div>
           <Button
@@ -114,6 +135,11 @@ export function AgentPanel() {
             <LogOut />
           </Button>
         </div>
+        <ProviderSelect
+          value={provider}
+          disabled={running !== null}
+          onChange={(provider) => void selectProvider(provider)}
+        />
         <div className='grid grid-cols-[minmax(0,1fr)_7rem] gap-1.5'>
           <Select
             value={status.config.model ?? 'automatic'}
@@ -127,12 +153,17 @@ export function AgentPanel() {
                   ? selected.reasoning[0]
                   : status.config.reasoning
               void saveConfig({
+                ...status.config,
                 model: model === 'automatic' ? null : model,
                 reasoning,
               })
             }}
           >
-            <SelectTrigger size='sm' className='w-full min-w-0' aria-label={t('agent.model')}>
+            <SelectTrigger
+              size='sm'
+              className='w-full min-w-0'
+              aria-label={t(`agent.model${copy.suffix}`)}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent align='start'>
@@ -251,21 +282,37 @@ export function AgentPanel() {
     </div>
   )
 
+  async function selectProvider(provider: AgentProvider) {
+    if (!status || provider === status.config.provider) return
+    setMessages([])
+    setLoginEvent(null)
+    await call(commands.saveAgentConfig, { ...status.config, provider, model: null })
+    const next = await call(commands.getAgentStatus)
+    setStatus(next)
+    if (refreshesTranslationModels(next.config.provider) && next.account) {
+      void refreshTranslationModels(true)
+    }
+  }
+
   async function login() {
     setLoggingIn(true)
     setLoginEvent({ type: 'progress', message: t('agent.signingIn') })
     const channel = new Channel<LoginEvent>()
     channel.onmessage = setLoginEvent
     try {
-      setStatus(await call(commands.loginAgent, channel))
+      const next = await call(commands.loginAgent, channel)
+      setStatus(next)
       setLoginEvent(null)
+      if (refreshesTranslationModels(next.config.provider)) void refreshTranslationModels(true)
     } finally {
       setLoggingIn(false)
     }
   }
 
   async function logout() {
-    setStatus(await call(commands.logoutAgent))
+    const next = await call(commands.logoutAgent)
+    setStatus(next)
+    if (refreshesTranslationModels(provider)) void refreshTranslationModels(true)
     setMessages([])
     setActivity(null)
   }
@@ -349,4 +396,36 @@ export function AgentPanel() {
       )
     }
   }
+}
+
+function ProviderSelect({
+  className = 'w-full min-w-0',
+  value,
+  disabled,
+  onChange,
+}: {
+  className?: string
+  value: AgentProvider
+  disabled: boolean
+  onChange: (provider: AgentProvider) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <Select
+      value={value}
+      disabled={disabled}
+      onValueChange={(provider) => onChange(provider as AgentProvider)}
+    >
+      <SelectTrigger size='sm' className={className} aria-label={t('agent.provider')}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {(Object.keys(providerCopy) as AgentProvider[]).map((provider) => (
+          <SelectItem key={provider} value={provider}>
+            {providerCopy[provider].name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
 }

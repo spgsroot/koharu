@@ -6,19 +6,26 @@
     "version": "버전"
   },
   "activity": {
+    "queued": "대기 중",
     "dismiss": "닫기",
     "downloadFailed": "다운로드에 실패했습니다.",
     "downloadingFiles": "{{count}}개 파일 다운로드 중",
     "downloadingFiles_one": "{{count}}개 파일 다운로드 중",
     "downloadingFiles_other": "{{count}}개 파일 다운로드 중",
+    "importApply": "적용",
+    "importDiscard": "취소",
+    "importIssues": "오류 {{errors}}건 · 경고 {{warnings}}건",
     "modelDownload": "모델 다운로드",
     "processing": "처리 중",
+    "pageLabel": "{{number}}페이지: {{label}}",
     "processingFailed": "처리에 실패했습니다.",
     "stop": "중지",
     "title": "활동"
   },
   "agent": {
     "account": "ChatGPT 계정",
+    "accountGrok": "xAI 계정",
+    "accountKimi": "Kimi Code 계정",
     "applying": "프로젝트 변경 사항 적용 중…",
     "automatic": "자동",
     "cancel": "취소",
@@ -31,8 +38,11 @@
     "loading": "Codex 불러오는 중…",
     "message": "Koharu 에이전트에게 메시지 보내기",
     "model": "Codex 모델",
+    "modelGrok": "Grok 모델",
+    "modelKimi": "Kimi 모델",
     "placeholder": "Koharu에게 이 프로젝트 작업 요청…",
     "properties": "속성",
+    "provider": "제공자",
     "reasoning": "추론",
     "reasoningLevels": {
       "high": "높음",
@@ -45,7 +55,13 @@
     "send": "보내기",
     "signIn": "Codex로 로그인",
     "signInDescription": "ChatGPT 구독으로 로그인하세요. Koharu는 기기 코드 인증을 사용하며 API 키를 요구하지 않습니다.",
+    "signInDescriptionGrok": "xAI 계정으로 로그인하세요. Koharu는 기기 코드 인증을 사용하며 API 키를 요구하지 않습니다.",
+    "signInDescriptionKimi": "Kimi Code 구독으로 로그인하세요. Koharu는 기기 코드 인증을 사용하며 API 키를 요구하지 않습니다.",
+    "signInGrok": "Grok으로 로그인",
+    "signInKimi": "Kimi로 로그인",
     "signInTitle": "Codex 연결",
+    "signInTitleGrok": "Grok 연결",
+    "signInTitleKimi": "Kimi 연결",
     "signOut": "로그아웃",
     "signingIn": "로그인 대기 중…",
     "thinking": "생각 중…",
@@ -53,8 +69,10 @@
     "working": "작업 중…"
   },
   "canvas": {
+    "censorMask": "검열 마스크",
     "empty": "시작할 페이지를 선택하세요.",
     "fit": "창에 맞춤",
+    "noCensorMask": "검열 감지를 실행하여 마스크 미리보기",
     "surface": "Koharu 캔버스",
     "unavailable": "WebGPU 캔버스를 사용할 수 없습니다"
   },
@@ -121,6 +139,41 @@
       "system": "시스템"
     },
     "style": "스타일"
+  },
+  "history": {
+    "title": "작업 내역",
+    "clear": "작업 내역 지우기",
+    "clearConfirmTitle": "작업 내역을 지우시겠습니까?",
+    "clearConfirmDescription": "모든 실행 취소 및 다시 실행 상태가 삭제됩니다. 문서 자체는 변경되지 않습니다.",
+    "clearConfirmAction": "지우기",
+    "snapshot": "스냅샷 만들기",
+    "snapshots": "스냅샷",
+    "restore": "복원",
+    "deleteSnapshot": "스냅샷 삭제",
+    "empty": "아직 기록된 작업이 없습니다.",
+    "state": {
+      "open": "열기",
+      "import_pages": "페이지 가져오기",
+      "import_translations": "번역 가져오기",
+      "rename_page": "페이지 이름 바꾸기",
+      "delete_pages": "페이지 삭제",
+      "move_page": "페이지 이동",
+      "add_text": "텍스트 추가",
+      "source_text": "원본 텍스트",
+      "translation": "번역",
+      "typography": "타이포그래피",
+      "geometry": "지오메트리",
+      "transform": "변형",
+      "toggle_layer": "레이어 표시 전환",
+      "opacity": "불투명도",
+      "delete_layers": "레이어 삭제",
+      "paste_layers": "레이어 붙여넣기",
+      "move_layer": "레이어 이동",
+      "brush": "브러시 도구",
+      "erase": "지우개",
+      "snapshot_restore": "스냅숏 복원",
+      "pipeline_stage": "처리"
+    }
   },
   "inference": {
     "currentPage": "현재 페이지",
@@ -243,6 +296,9 @@
     "about": "정보",
     "closeProject": "프로젝트 닫기",
     "delete": "선택 항목 삭제",
+    "copy": "복사",
+    "cut": "잘라내기",
+    "paste": "붙여넣기",
     "discord": "Discord",
     "edit": "편집",
     "exportPng": "PNG 내보내기…",
@@ -267,6 +323,7 @@
     "baseUrl": "기본 URL",
     "default": "기본값",
     "instructions": "번역 지침",
+    "sourceLanguage": "원문 언어",
     "targetLanguage": "대상 언어"
   },
   "modelPicker": {
@@ -297,21 +354,301 @@
     "pages": "페이지",
     "rename": "이름 바꾸기",
     "renameDescription": "이 페이지의 새 이름을 정하세요.",
-    "renameTitle": "페이지 이름 바꾸기"
+    "renameTitle": "페이지 이름 바꾸기",
+    "selected": "{{count}}개 선택됨"
+  },
+  "orders": {
+    "workspace": {
+      "orders": "주문",
+      "editor": "편집기",
+      "projects": "모든 프로젝트"
+    },
+    "breadcrumb": {
+      "order": "주문 {{number}}"
+    },
+    "header": {
+      "searchPlaceholder": "번호, 제목, 클라이언트로 검색…",
+      "filters": "필터",
+      "createOrder": "주문 생성"
+    },
+    "summary": {
+      "overdue": "기한 초과",
+      "due_today": "오늘 마감",
+      "blocked": "차단됨",
+      "ready": "납품 준비 완료"
+    },
+    "views": {
+      "label": "저장된 보기",
+      "attention": "주의 필요",
+      "mine": "내 항목",
+      "today": "오늘",
+      "all": "전체"
+    },
+    "filters": {
+      "lifecycle": "상태",
+      "stage": "단계",
+      "anyStage": "모든 단계",
+      "assignee": "담당자",
+      "client": "클라이언트",
+      "needsAttention": "주의 필요 항목만"
+    },
+    "lifecycle": {
+      "active": "진행 중",
+      "on_hold": "보류",
+      "completed": "완료",
+      "delivered": "납품됨",
+      "cancelled": "취소됨",
+      "confirm": "상태를 \"{{status}}\"(으)로 변경하시겠습니까?"
+    },
+    "stages": {
+      "title": "제작 단계",
+      "intake": "접수",
+      "preparation": "준비",
+      "translation": "번역",
+      "editing": "편집",
+      "typesetting": "조판",
+      "qa": "품질 관리",
+      "delivery": "납품",
+      "lockedHint": "먼저 차단 메모를 해결하세요.",
+      "block": "차단",
+      "unblock": "차단 해제",
+      "complete": "단계 완료",
+      "next": "다음 단계",
+      "returnToEditing": "편집으로 돌아가기",
+      "blockPlaceholder": "이 단계를 차단하는 것은 무엇인가요?",
+      "blockSubmit": "단계 차단",
+      "allDone": "모든 단계가 완료되었습니다."
+    },
+    "stageStates": {
+      "not_started": "시작 전",
+      "in_progress": "진행 중",
+      "blocked": "차단됨",
+      "done": "완료"
+    },
+    "priority": {
+      "normal": "보통",
+      "high": "높음",
+      "urgent": "긴급"
+    },
+    "attention": {
+      "overdue": "기한 초과",
+      "due_soon": "마감 임박",
+      "blocked": "차단됨",
+      "import_failed": "가져오기 실패",
+      "import_unreviewed": "가져오기 검토 필요",
+      "pipeline_failed": "파이프라인 실패",
+      "ready_to_deliver": "납품 준비 완료",
+      "stale": "활동 없음"
+    },
+    "sla": {
+      "ok": "정상",
+      "risk": "위험",
+      "breached": "기한 초과"
+    },
+    "table": {
+      "order": "주문",
+      "assignee": "담당자",
+      "deadline": "마감일",
+      "progress": "{{total}}페이지 중 {{translated}}페이지",
+      "progressTitle": "진행률",
+      "progressLabel": "번역 진행률",
+      "noPages": "페이지 없음",
+      "sla": "SLA",
+      "stage": "단계",
+      "status": "상태",
+      "attention": "주의",
+      "actions": "작업",
+      "empty": "주문을 찾을 수 없습니다.",
+      "total": "주문: {{count}}건",
+      "open": "열기",
+      "addBlocker": "주문 {{number}}에 차단 요소 추가",
+      "addBlockerHint": "빠른 차단",
+      "sortNearestOn": "마감 임박 순",
+      "sortNearestOff": "기본 순서"
+    },
+    "blockerDialog": {
+      "title": "새 차단 요소",
+      "description": "주문 {{number}}. 차단 메모는 현재 단계를 중지합니다.",
+      "placeholder": "작업이 진행되지 못하는 이유는 무엇인가요?",
+      "submit": "단계 차단"
+    },
+    "sheet": {
+      "title": "주문",
+      "editTitle": "제목 편집",
+      "edit": "편집",
+      "pagesChip": "페이지: {{total}} 중 {{translated}}",
+      "blockersChip": "차단 요소: {{count}}"
+    },
+    "actions": {
+      "openEditor": "편집기 열기",
+      "attachProject": "프로젝트 연결",
+      "exportXlsx": "내보내기(XLSX)",
+      "exportCsv": "CSV",
+      "import": "번역 가져오기",
+      "exportSaved": "파일이 저장됨"
+    },
+    "form": {
+      "number": "번호",
+      "numberPlaceholder": "ORD-2026-0001 (선택 사항)",
+      "title": "제목",
+      "clientName": "클라이언트",
+      "assignee": "담당자",
+      "priority": "우선순위",
+      "lifecycle": "상태",
+      "sourceLanguage": "원본 언어",
+      "targetLanguage": "대상 언어",
+      "deadline": "마감일",
+      "brief": "브리프",
+      "description": "주문은 관리 기록입니다. 페이지 콘텐츠는 프로젝트에 있습니다.",
+      "createTitle": "새 주문",
+      "editTitle": "주문 {{number}} 편집",
+      "create": "주문 생성",
+      "save": "저장"
+    },
+    "tabs": {
+      "main": "개요",
+      "notes": "메모",
+      "activity": "활동",
+      "imports": "가져오기"
+    },
+    "notes": {
+      "kind": "메모 종류",
+      "placeholder": "메모 내용…",
+      "add": "메모 추가",
+      "empty": "아직 메모가 없습니다.",
+      "resolved": "{{by}}이(가) 해결",
+      "resolve": "해결",
+      "reopen": "다시 열기",
+      "delete": "삭제",
+      "deleteConfirm": "이 메모를 삭제하시겠습니까? 이 작업은 활동 로그에 기록됩니다."
+    },
+    "noteKinds": {
+      "internal": "내부",
+      "client": "클라이언트",
+      "blocker": "차단 요소",
+      "qa": "품질 관리"
+    },
+    "activity": {
+      "empty": "아직 이벤트가 없습니다.",
+      "order_created": "주문 생성됨",
+      "order_updated": "주문 업데이트됨",
+      "project_attached": "프로젝트 연결됨",
+      "project_detached": "프로젝트 연결 해제",
+      "lifecycle_changed": "상태 변경됨",
+      "stage_started": "단계 시작됨",
+      "stage_completed": "단계 완료됨",
+      "stage_blocked": "단계 차단됨",
+      "stage_unblocked": "단계 차단 해제됨",
+      "note_added": "메모 추가됨",
+      "note_resolved": "메모 해결됨",
+      "note_deleted": "메모 삭제됨",
+      "import_uploaded": "번역 업로드됨",
+      "import_applied": "가져오기 적용됨",
+      "import_failed": "가져오기 실패함",
+      "import_discarded": "가져오기 취소됨",
+      "pipeline_succeeded": "파이프라인 완료됨",
+      "pipeline_failed": "파이프라인 실패함"
+    },
+    "importStates": {
+      "ready": "적용 준비 완료",
+      "needs_attention": "검토 필요",
+      "failed": "실패",
+      "applied": "적용됨"
+    },
+    "imports": {
+      "empty": "아직 가져오기 내역이 없습니다.",
+      "counts": "적용: {{accepted}} · 오류: {{errors}} · 경고: {{warnings}}",
+      "report": "보고서 CSV",
+      "reportSaved": "보고서가 저장됨"
+    },
+    "import": {
+      "title": "가져오기 미리 보기",
+      "row": "{{row}}행",
+      "errorsCount": "오류: {{count}}",
+      "warningsCount": "경고: {{count}}",
+      "acceptedCount": "적용 예정: {{total}}건 중 {{accepted}}건",
+      "errorsHeading": "차단 오류({{count}})",
+      "warningsHeading": "경고({{count}})",
+      "page": "페이지",
+      "segment": "세그먼트",
+      "source": "원문",
+      "translation": "번역",
+      "change": "변경",
+      "apply": "가져오기 적용",
+      "discard": "취소",
+      "close": "닫기",
+      "applyHint": "파일의 오류를 수정한 후 다시 업로드하세요."
+    },
+    "importChanges": {
+      "new": "신규",
+      "changed": "변경됨",
+      "unchanged": "변경 없음"
+    },
+    "duplicate": {
+      "title": "이미 업로드된 파일입니다",
+      "description": "동일한 파일이 이미 이 주문에 가져와졌습니다. 중복 항목은 생성되지 않았습니다.",
+      "ok": "확인"
+    },
+    "attach": {
+      "title": "프로젝트 연결",
+      "description": "주문은 하나의 Koharu 프로젝트 안에서 편집합니다.",
+      "noProjects": "아직 프로젝트가 없습니다 — 아래에서 새로 만드세요.",
+      "newPlaceholder": "새 프로젝트 이름",
+      "createAndAttach": "생성 후 연결"
+    }
   },
   "outputPicker": {
     "instructions": "번역 지침",
     "instructionsPlaceholder": "말투, 이름, 서식에 관한 선택적 지침입니다.",
+    "sourceLanguage": "원문 언어",
     "targetLanguage": "대상 언어",
-    "title": "번역 출력"
+    "title": "번역 출력",
+    "validators": "자동 검증기"
+  },
+  "repairPresets": {
+    "delete": "프리셋 삭제",
+    "label": "프리셋",
+    "name": "프리셋 이름",
+    "placeholder": "프리셋 선택",
+    "rename": "이름 바꾸기",
+    "save": "프리셋으로 저장"
+  },
+  "systemPrompt": {
+    "editBuiltIn": "기본 프롬프트 편집",
+    "hint": "비워 두면 기본 프롬프트를 사용합니다. {source}와 {target}은 실행 언어로 바뀝니다.",
+    "label": "시스템 프롬프트",
+    "profile": "콘텐츠 프로필",
+    "profiles": {
+      "comic": "코믹스",
+      "hentai": "성인 만화",
+      "manga": "만화"
+    }
+  },
+  "translationValidators": {
+    "add": "규칙 추가",
+    "chinese": "중국어 한자",
+    "customRule": "사용자 지정 검증 규칙",
+    "japanese": "일본어 가나",
+    "korean": "한글",
+    "latin": "라틴 문자",
+    "name": "규칙 이름",
+    "namePlaceholder": "예: 라틴 문자 금지",
+    "pattern": "정규식",
+    "patternPlaceholder": "[A-Za-z]",
+    "presets": "문자 차단 프리셋",
+    "remove": "규칙 삭제"
   },
   "phase": {
+    "censor_detection": "검열 감지",
+    "decensor": "검열 제거",
     "detection": "감지",
     "inpainting": "인페인팅",
     "ocr": "OCR",
     "translation": "번역"
   },
   "phaseDescription": {
+    "censor_detection": "가려진 영역을 찾아 마스크를 저장합니다.",
+    "decensor": "선택한 모델로 검열 영역을 복원합니다.",
     "detection": "페이지의 텍스트를 찾습니다.",
     "inpainting": "텍스트를 지운 뒤 그림을 복원합니다.",
     "ocr": "각 영역 안의 텍스트를 읽습니다.",
@@ -321,6 +658,7 @@
     "atlas-cloud": "Atlas에서 호스팅되는 언어 모델입니다.",
     "caiyun": "Caiyun 번역 API입니다.",
     "claude": "Anthropic Claude 모델입니다.",
+    "cursor": "Cursor Cloud Agent 모델입니다.",
     "deepl": "DeepL 번역 API입니다.",
     "deepseek": "DeepSeek 언어 모델입니다.",
     "gemini": "Google Gemini 모델입니다.",
@@ -335,14 +673,16 @@
   },
   "resources": {
     "cpu": "CPU",
+    "gpu": "GPU",
+    "gpuUtilization": "GPU 사용률",
     "processUtilization": "프로세스 사용률",
     "ram": "RAM",
-    "summary": "RAM {{ram}}%, CPU {{cpu}}%",
+    "summary": "RAM {{ram}}, CPU {{cpu}}",
+    "summaryGpu": "RAM {{ram}}, CPU {{cpu}}, GPU {{gpu}}",
     "title": "시스템 리소스",
-    "tooltip": "RAM {{ramUsed}} / {{ramTotal}} · CPU {{cpu}}%",
+    "unavailable": "사용할 수 없음",
     "usedOfTotal": "{{total}} 중 {{used}} 사용",
-    "vramUnavailable": "사용할 수 없음",
-    "vramValue": "VRAM {{value}}"
+    "vram": "VRAM"
   },
   "settings": {
     "appearance": {
@@ -372,6 +712,19 @@
       "temperature": "온도",
       "reasoning": "추론",
       "reasoningDescription": "번역할 때 모델 추론을 사용합니다.",
+      "reasoningLevel": "추론 수준",
+      "reasoningLevelDescription": "추론이 켜져 있을 때 모델이 얼마나 깊게 추론할지 정합니다. 기본값은 제공자 자체 설정을 그대로 사용합니다.",
+      "reasoningLevelUnsupported": "선택한 모델은 이 수준을 지원하지 않습니다. 다른 수준이나 기본값을 선택하세요.",
+      "reasoningLevels": {
+        "high": "높음",
+        "low": "낮음",
+        "max": "최대",
+        "medium": "중간",
+        "minimal": "최소",
+        "xhigh": "매우 높음"
+      },
+      "reasoningOnOffOnly": "이 모델에는 추론 수준이 없습니다. 추론은 켜거나 끄는 것만 가능합니다.",
+      "reasoningUnsupported": "이 모델은 추론을 지원하지 않습니다.",
       "title": "생성",
       "topK": "상위 K개",
       "topP": "Top P",
@@ -380,14 +733,44 @@
     },
     "loading": "환경 설정 불러오는 중…",
     "pipeline": {
+      "censorDetection": {
+        "description": "가려진 영역을 찾아 마스크를 저장합니다.",
+        "title": "검열 감지"
+      },
       "description": "각 페이지 처리에 사용할 모델과 옵션을 선택합니다.",
       "modelLabel": "{{stage}} 모델",
       "options": {
         "bubbleThreshold": "말풍선 임곗값",
+        "guidanceScale": "가이던스 강도",
+        "inferenceSteps": "추론 단계",
+        "lineartStrength": "선화 강도",
+        "loraPath": "LoRA 파일 (선택 사항)",
+        "loraStrength": "LoRA 강도 (0 = 끄기)",
         "negativePrompt": "네거티브 프롬프트",
         "panelThreshold": "패널 임곗값",
         "prompt": "프롬프트",
-        "textThreshold": "텍스트 임곗값"
+        "textThreshold": "텍스트 임곗값",
+        "endpoint": "ComfyUI 엔드포인트",
+        "checkpoint": "체크포인트",
+        "controlnet": "ControlNet",
+        "positivePrompt": "긍정 프롬프트",
+        "seed": "시드",
+        "denoise": "재생성 강도",
+        "automaticCensorMask": "자동 검열 마스크",
+        "detectMosaic": "모자이크 감지",
+        "censorThreshold": "검열 감지 임곗값",
+        "censorMaskGrow": "검열 마스크 확장",
+        "censorMaskBlur": "검열 마스크 흐림",
+        "maskPadding": "마스크 여백",
+        "maskGrow": "마스크 확장",
+        "maskBlur": "마스크 흐림",
+        "colorMatchStrength": "색상 일치",
+        "timeoutSeconds": "시간 제한(초)"
+      },
+      "profiles": {
+        "flux2-klein-9b-uncensored": "무검열 Q4_K_M 텍스트 인코더를 사용하는 증류 9B Q8",
+        "diffusioncreampy-animagine-xl-4": "Animagine XL 4.0 Opt를 사용하는 애니메이션·만화용 로컬 ComfyUI SDXL 인페인팅입니다.",
+        "diffusioncreampy-illustrious-xl-2": "Illustrious XL 2.0을 사용하는 세밀한 일러스트용 로컬 ComfyUI SDXL 인페인팅입니다."
       },
       "processing": "처리 중",
       "stages": {
@@ -395,9 +778,21 @@
           "description": "텍스트, 말풍선, 패널을 찾습니다.",
           "title": "감지"
         },
-        "inpainting": {
-          "description": "제거한 텍스트 아래의 아트워크를 복원합니다.",
-          "title": "인페인팅"
+        "decensor": {
+          "description": "선택한 모델로 검열 영역을 복원합니다.",
+          "title": "검열 제거"
+        },
+        "artwork": {
+          "description": "말풍선 밖의 텍스트와 효과음 아래의 아트워크를 복원합니다.",
+          "title": "아트워크 인페인팅"
+        },
+        "manual": {
+          "description": "마스크를 그리고 독립적인 프롬프트와 설정으로 FLUX 복원을 실행합니다.",
+          "title": "수동 인페인팅 (FLUX)"
+        },
+        "bubbles": {
+          "description": "말풍선 안의 텍스트를 빠르게 지웁니다.",
+          "title": "말풍선 인페인팅"
         },
         "ocr": {
           "description": "감지된 영역 안의 원문을 읽습니다.",
@@ -429,6 +824,7 @@
       "providers": "제공자",
       "shortcuts": "단축키",
       "translation": "번역",
+      "usage": "토큰 사용량",
       "typesetting": "조판"
     },
     "title": "설정",
@@ -444,6 +840,11 @@
       "quantization": "양자화",
       "quantizationDescription": "작은 형식은 메모리를 덜 사용하지만 일반적으로 품질이 낮아질 수 있습니다.",
       "selectQuantization": "양자화 선택",
+      "sourceLanguageDescription": "원문 텍스트의 언어를 선택합니다.",
+      "systemPrompt": "시스템 프롬프트",
+      "systemPromptDescription": "편집기 실행에 사용할 프로필을 선택합니다. 각 프로필은 자체 프롬프트를 유지하며, Telegram 주문은 주문의 프로필을 사용합니다.",
+      "validators": "자동 검증기",
+      "validatorsDescription": "일치하는 번역 텍스트를 거부하고 수정 피드백과 함께 한 번 다시 생성합니다.",
       "targetLanguageDescription": "텍스트를 번역할 언어를 선택합니다.",
       "title": "번역",
       "translationModel": "번역 모델",
@@ -499,38 +900,110 @@
     "brushSizePixels": "브러시 크기: {{size}}픽셀",
     "brushSizeShort": "{{size}} px",
     "color_picker": "색상 선택기",
+    "decensor": "검열 제거",
     "decreaseBrushSize": "브러시 크기 줄이기",
     "draw": "그리기",
     "eraser": "지우개",
     "increaseBrushSize": "브러시 크기 늘리기",
     "pan": "이동",
-    "remove": "제거",
+    "fast": "Fast",
+    "inpainting": "Inpainting (FLUX)",
+    "applyRepairSettings": "설정 적용",
+    "repairSettingsHint": "그리기 전에 설정을 적용하세요. 접수된 마스크는 기존 설정을 유지합니다.",
     "select": "선택",
     "text": "텍스트"
   },
-  "updater": {
-    "available": {
-      "description": "코하루 <strong>{{version}}</strong>을(를) 설치할 수 있습니다",
-      "title": "업데이트 사용 가능"
-    },
-    "close": "닫기",
-    "downloading": {
-      "subtitle": "코하루 {{version}}",
-      "title": "업데이트 다운로드 중…"
-    },
-    "error": {
-      "description": "업데이트 중 문제가 발생했습니다",
-      "title": "업데이트 실패"
-    },
-    "later": "나중에",
-    "noNotes": "릴리스 노트가 제공되지 않았습니다.",
-    "retry": "다시 시도",
-    "update": "업데이트"
+  "usage": {
+    "title": "토큰 사용량",
+    "description": "번역과 AI 에이전트의 요청별 로컬 사용 기록입니다.",
+    "privacy": "프롬프트, 이미지, 응답, 인증 정보와 추론 텍스트는 기록하지 않습니다.",
+    "unknownNotice": "대시는 제공자가 값을 보고하지 않았음을 의미합니다. 비용은 추정이 아닌 보고된 값입니다. 추론과 캐시는 세부 내역이며 총량에 다시 더하지 않습니다.",
+    "provider": "제공자",
+    "model": "모델",
+    "from": "시작일",
+    "to": "종료일 포함",
+    "apply": "필터 적용",
+    "refresh": "새로 고침",
+    "requests": "요청",
+    "input": "입력 토큰",
+    "output": "출력 토큰",
+    "total": "총 토큰",
+    "cost": "보고된 비용",
+    "missingUsage": "토큰 사용량이 보고되지 않은 요청: {{count}}",
+    "missingCost": "비용이 보고되지 않은 요청: {{count}}",
+    "coverage": "{{total}}개 요청 중 {{known}}개에서 보고됨",
+    "empty": "필터에 맞는 요청이 없습니다.",
+    "failed": "로컬 사용 기록을 읽지 못했습니다.",
+    "time": "시간",
+    "operation": "작업",
+    "status": "결과",
+    "latency": "소요 시간",
+    "details": "요청 상세",
+    "detailsFor": "요청 {{id}} 상세",
+    "previous": "최신 기록",
+    "next": "이전 기록",
+    "page": "{{number}} 페이지",
+    "identity": "요청 및 컨텍스트",
+    "tokens": "토큰 상세 내역",
+    "parameters": "생성 매개변수",
+    "invalidDates": "시작일은 종료일보다 늦을 수 없습니다.",
+    "storage": "로컬 기록: {{path}}",
+    "fields": {
+      "provider": "제공자",
+      "requested_model": "요청 모델",
+      "resolved_model": "응답 모델",
+      "request_id": "제공자 요청 ID",
+      "response_id": "제공자 응답 ID",
+      "attempt": "시도",
+      "http_status": "HTTP 상태",
+      "error_kind": "오류 분류",
+      "project_id": "프로젝트",
+      "page_id": "페이지",
+      "job_id": "작업 / 실행",
+      "source_language": "원본 언어",
+      "target_language": "대상 언어",
+      "segment_count": "세그먼트",
+      "image_count": "이미지",
+      "context_count": "컨텍스트 항목",
+      "reasoning": "추론 활성화",
+      "reasoning_effort": "추론 수준",
+      "reasoning_tokens": "추론 토큰",
+      "cache_read_tokens": "캐시 입력 토큰",
+      "cache_write_tokens": "캐시 쓰기 토큰",
+      "image_input_tokens": "이미지 입력 토큰",
+      "image_output_tokens": "이미지 출력 토큰",
+      "audio_input_tokens": "오디오 입력 토큰",
+      "audio_output_tokens": "오디오 출력 토큰",
+      "cost_source": "비용 출처"
+    }
   },
   "window": {
     "close": "닫기",
     "maximize": "최대화",
     "minimize": "최소화",
     "restore": "복원"
+  },
+  "galleryImport": {
+    "cancel": "취소",
+    "close": "닫기",
+    "cookies": "exhentai 쿠키",
+    "cookiesHint": "ipb_member_id, ipb_pass_hash, igneous가 들어 있는 cookie 헤더를 붙여 넣으세요. 시스템 키체인에 저장되며 다시 표시되지 않습니다.",
+    "cookiesOptional": "(exhentai 전용)",
+    "description": "여러 갤러리를 지정한 순서대로 새 프로젝트에 내려받습니다. e-hentai, exhentai, nhentai 링크를 지원합니다.",
+    "downloading": "페이지를 내려받는 중…",
+    "error": "가져오기에 실패했습니다. 링크를 확인하고 다시 시도하세요.",
+    "galleries": "갤러리",
+    "import": "가져오기",
+    "importing": "가져오는 중…",
+    "importingPages": "프로젝트를 만드는 중…",
+    "inspecting": "갤러리 정보를 읽는 중…",
+    "name": "프로젝트 이름",
+    "nameOptional": "(선택)",
+    "pages": "페이지",
+    "progress": "가져오기 진행률",
+    "success": "프로젝트를 만들었습니다",
+    "title": "갤러리 가져오기",
+    "urls": "갤러리 링크 (한 줄에 하나, 최대 20개)",
+    "urlsPlaceholder": "https://e-hentai.org/g/123456/abcdef0123/\nhttps://nhentai.net/g/654321/"
   }
 }

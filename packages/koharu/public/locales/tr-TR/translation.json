@@ -6,19 +6,26 @@
     "version": "Sürüm"
   },
   "activity": {
+    "queued": "Kuyrukta",
     "dismiss": "Kapat",
     "downloadFailed": "İndirme başarısız oldu.",
     "downloadingFiles": "{{count}} dosya indiriliyor",
     "downloadingFiles_one": "{{count}} dosya indiriliyor",
     "downloadingFiles_other": "{{count}} dosya indiriliyor",
+    "importApply": "Uygula",
+    "importDiscard": "Vazgeç",
+    "importIssues": "{{errors}} hata · {{warnings}} uyarı",
     "modelDownload": "Model indirme",
     "processing": "İşleniyor",
+    "pageLabel": "Sayfa {{number}}: {{label}}",
     "processingFailed": "İşleme başarısız oldu.",
     "stop": "Durdur",
     "title": "Etkinlik"
   },
   "agent": {
     "account": "ChatGPT hesabı",
+    "accountGrok": "xAI hesabı",
+    "accountKimi": "Kimi Code hesabı",
     "applying": "Proje değişiklikleri uygulanıyor…",
     "automatic": "Otomatik",
     "cancel": "İptal",
@@ -31,8 +38,11 @@
     "loading": "Codex yükleniyor…",
     "message": "Koharu Ajanına mesaj gönder",
     "model": "Codex modeli",
+    "modelGrok": "Grok modeli",
+    "modelKimi": "Kimi modeli",
     "placeholder": "Koharu’dan bu proje üzerinde çalışmasını isteyin…",
     "properties": "Özellikler",
+    "provider": "Sağlayıcı",
     "reasoning": "Akıl yürütme",
     "reasoningLevels": {
       "high": "Yüksek",
@@ -45,7 +55,13 @@
     "send": "Gönder",
     "signIn": "Codex ile oturum aç",
     "signInDescription": "ChatGPT aboneliğinizle oturum açın. Koharu cihaz kodu kimlik doğrulamasını kullanır ve hiçbir zaman API anahtarı istemez.",
+    "signInDescriptionGrok": "xAI hesabınızla oturum açın. Koharu cihaz kodu kimlik doğrulamasını kullanır ve hiçbir zaman API anahtarı istemez.",
+    "signInDescriptionKimi": "Kimi Code aboneliğinizle giriş yapın. Koharu cihaz kodu kimlik doğrulaması kullanır ve asla API anahtarı istemez.",
+    "signInGrok": "Grok ile oturum aç",
+    "signInKimi": "Kimi ile giriş yap",
     "signInTitle": "Codex’e bağlan",
+    "signInTitleGrok": "Grok’a bağlan",
+    "signInTitleKimi": "Kimi’yi bağla",
     "signOut": "Oturumu kapat",
     "signingIn": "Oturum açma bekleniyor…",
     "thinking": "Düşünüyor…",
@@ -53,8 +69,10 @@
     "working": "Çalışıyor…"
   },
   "canvas": {
+    "censorMask": "Sansür maskesi",
     "empty": "Başlamak için bir sayfa seçin.",
     "fit": "Pencereye Sığdır",
+    "noCensorMask": "Maskeyi görmek için sansür algılamayı çalıştırın",
     "surface": "Koharu tuvali",
     "unavailable": "WebGPU tuvali kullanılamıyor"
   },
@@ -121,6 +139,41 @@
       "system": "Sistem"
     },
     "style": "Stil"
+  },
+  "history": {
+    "title": "Geçmiş",
+    "clear": "Geçmişi temizle",
+    "clearConfirmTitle": "Geçmiş temizlensin mi?",
+    "clearConfirmDescription": "Tüm geri alma ve yineleme durumları silinecek. Belgenin kendisi değişmez.",
+    "clearConfirmAction": "Temizle",
+    "snapshot": "Anlık görüntü oluştur",
+    "snapshots": "Anlık görüntüler",
+    "restore": "Geri yükle",
+    "deleteSnapshot": "Anlık görüntüyü sil",
+    "empty": "Henüz kaydedilmiş işlem yok.",
+    "state": {
+      "open": "Açma",
+      "import_pages": "Sayfaları içe aktar",
+      "import_translations": "Çeviri içe aktarma",
+      "rename_page": "Sayfayı yeniden adlandır",
+      "delete_pages": "Sayfaları sil",
+      "move_page": "Sayfayı taşı",
+      "add_text": "Metin ekle",
+      "source_text": "Kaynak metin",
+      "translation": "Çeviri",
+      "typography": "Tipografi",
+      "geometry": "Geometri",
+      "transform": "Dönüştürme",
+      "toggle_layer": "Katman görünürlüğü",
+      "opacity": "Opaklık",
+      "delete_layers": "Katmanları sil",
+      "paste_layers": "Katmanları yapıştır",
+      "move_layer": "Katmanı taşı",
+      "brush": "Fırça aracı",
+      "erase": "Silgi",
+      "snapshot_restore": "Anlık görüntü geri yükleme",
+      "pipeline_stage": "İşlem"
+    }
   },
   "inference": {
     "currentPage": "Geçerli sayfa",
@@ -243,6 +296,9 @@
     "about": "Hakkında",
     "closeProject": "Projeyi Kapat",
     "delete": "Seçilenleri Sil",
+    "copy": "Kopyala",
+    "cut": "Kes",
+    "paste": "Yapıştır",
     "discord": "Discord",
     "edit": "Düzenle",
     "exportPng": "PNG Dışa Aktar…",
@@ -267,6 +323,7 @@
     "baseUrl": "Temel URL",
     "default": "Varsayılan",
     "instructions": "Çeviri talimatları",
+    "sourceLanguage": "Kaynak dil",
     "targetLanguage": "Hedef dil"
   },
   "modelPicker": {
@@ -297,21 +354,301 @@
     "pages": "Sayfalar",
     "rename": "Yeniden adlandır",
     "renameDescription": "Bu sayfa için yeni bir ad seçin.",
-    "renameTitle": "Sayfayı yeniden adlandır"
+    "renameTitle": "Sayfayı yeniden adlandır",
+    "selected": "{{count}} seçili"
+  },
+  "orders": {
+    "workspace": {
+      "orders": "Siparişler",
+      "editor": "Düzenleyici",
+      "projects": "Tüm projeler"
+    },
+    "breadcrumb": {
+      "order": "Sipariş {{number}}"
+    },
+    "header": {
+      "searchPlaceholder": "Numara, başlık, müşteriye göre ara…",
+      "filters": "Filtreler",
+      "createOrder": "Sipariş oluştur"
+    },
+    "summary": {
+      "overdue": "Süresi geçmiş",
+      "due_today": "Bugün son gün",
+      "blocked": "Engellenmiş",
+      "ready": "Teslime hazır"
+    },
+    "views": {
+      "label": "Kayıtlı görünümler",
+      "attention": "Dikkat gerektirenler",
+      "mine": "Benimkiler",
+      "today": "Bugün",
+      "all": "Tümü"
+    },
+    "filters": {
+      "lifecycle": "Durum",
+      "stage": "Aşama",
+      "anyStage": "Herhangi bir aşama",
+      "assignee": "Sorumlu",
+      "client": "Müşteri",
+      "needsAttention": "Yalnızca dikkat gerektirenler"
+    },
+    "lifecycle": {
+      "active": "Aktif",
+      "on_hold": "Beklemede",
+      "completed": "Tamamlandı",
+      "delivered": "Teslim edildi",
+      "cancelled": "İptal edildi",
+      "confirm": "Durum \"{{status}}\" olarak değiştirilsin mi?"
+    },
+    "stages": {
+      "title": "Üretim aşamaları",
+      "intake": "Kabul",
+      "preparation": "Hazırlık",
+      "translation": "Çeviri",
+      "editing": "Redaksiyon",
+      "typesetting": "Dizgi",
+      "qa": "Kalite kontrol",
+      "delivery": "Teslim",
+      "lockedHint": "Önce engelleyici notları çözün.",
+      "block": "Engelle",
+      "unblock": "Engeli kaldır",
+      "complete": "Aşamayı tamamla",
+      "next": "Sonraki aşama",
+      "returnToEditing": "Redaksiyona dön",
+      "blockPlaceholder": "Bu aşamayı engelleyen nedir?",
+      "blockSubmit": "Aşamayı engelle",
+      "allDone": "Tüm aşamalar tamamlandı."
+    },
+    "stageStates": {
+      "not_started": "Başlamadı",
+      "in_progress": "Devam ediyor",
+      "blocked": "Engellendi",
+      "done": "Tamamlandı"
+    },
+    "priority": {
+      "normal": "Normal",
+      "high": "Yüksek",
+      "urgent": "Acil"
+    },
+    "attention": {
+      "overdue": "Süresi geçmiş",
+      "due_soon": "Süresi yaklaşıyor",
+      "blocked": "Engellenmiş",
+      "import_failed": "İçe aktarma başarısız",
+      "import_unreviewed": "İçe aktarma inceleme bekliyor",
+      "pipeline_failed": "İşlem hattı başarısız",
+      "ready_to_deliver": "Teslime hazır",
+      "stale": "Etkinlik yok"
+    },
+    "sla": {
+      "ok": "Yolunda",
+      "risk": "Risk altında",
+      "breached": "Süresi geçmiş"
+    },
+    "table": {
+      "order": "Sipariş",
+      "assignee": "Sorumlu",
+      "deadline": "Son tarih",
+      "progress": "{{total}} sayfadan {{translated}} tanesi",
+      "progressTitle": "İlerleme",
+      "progressLabel": "Çeviri ilerlemesi",
+      "noPages": "Sayfa yok",
+      "sla": "SLA",
+      "stage": "Aşama",
+      "status": "Durum",
+      "attention": "Dikkat",
+      "actions": "İşlemler",
+      "empty": "Sipariş bulunamadı.",
+      "total": "Sipariş: {{count}}",
+      "open": "Aç",
+      "addBlocker": "{{number}} siparişine engelleyici ekle",
+      "addBlockerHint": "Hızlı engelleyici",
+      "sortNearestOn": "En yakın son tarih önce",
+      "sortNearestOff": "Varsayılan sıra"
+    },
+    "blockerDialog": {
+      "title": "Yeni engelleyici",
+      "description": "Sipariş {{number}}. Engelleyici bir not geçerli aşamayı durdurur.",
+      "placeholder": "İşin ilerlemesini engelleyen nedir?",
+      "submit": "Aşamayı engelle"
+    },
+    "sheet": {
+      "title": "Sipariş",
+      "editTitle": "Başlığı düzenle",
+      "edit": "Düzenle",
+      "pagesChip": "Sayfa: {{total}} içinden {{translated}}",
+      "blockersChip": "Engelleyici: {{count}}"
+    },
+    "actions": {
+      "openEditor": "Düzenleyiciyi aç",
+      "attachProject": "Proje bağla",
+      "exportXlsx": "Dışa aktar (XLSX)",
+      "exportCsv": "CSV",
+      "import": "Çevirileri içe aktar",
+      "exportSaved": "Dosya kaydedildi"
+    },
+    "form": {
+      "number": "Numara",
+      "numberPlaceholder": "ORD-2026-0001 (isteğe bağlı)",
+      "title": "Başlık",
+      "clientName": "Müşteri",
+      "assignee": "Sorumlu",
+      "priority": "Öncelik",
+      "lifecycle": "Durum",
+      "sourceLanguage": "Kaynak dil",
+      "targetLanguage": "Hedef dil",
+      "deadline": "Son tarih",
+      "brief": "Brif",
+      "description": "Sipariş yönetsel bir kayıttır. Sayfa içeriği projede bulunur.",
+      "createTitle": "Yeni sipariş",
+      "editTitle": "{{number}} siparişini düzenle",
+      "create": "Sipariş oluştur",
+      "save": "Kaydet"
+    },
+    "tabs": {
+      "main": "Genel bakış",
+      "notes": "Notlar",
+      "activity": "Etkinlik",
+      "imports": "İçe aktarmalar"
+    },
+    "notes": {
+      "kind": "Not türü",
+      "placeholder": "Not metni…",
+      "add": "Not ekle",
+      "empty": "Henüz not yok.",
+      "resolved": "{{by}} çözdü",
+      "resolve": "Çöz",
+      "reopen": "Yeniden aç",
+      "delete": "Sil",
+      "deleteConfirm": "Bu not silinsin mi? Bu işlem etkinlik kaydına kaydedilir."
+    },
+    "noteKinds": {
+      "internal": "Dahili",
+      "client": "Müşteri",
+      "blocker": "Engelleyici",
+      "qa": "Kalite kontrol"
+    },
+    "activity": {
+      "empty": "Henüz olay yok.",
+      "order_created": "Sipariş oluşturuldu",
+      "order_updated": "Sipariş güncellendi",
+      "project_attached": "Proje bağlandı",
+      "project_detached": "Proje bağlantısı kaldırıldı",
+      "lifecycle_changed": "Durum değiştirildi",
+      "stage_started": "Aşama başlatıldı",
+      "stage_completed": "Aşama tamamlandı",
+      "stage_blocked": "Aşama engellendi",
+      "stage_unblocked": "Aşama engeli kaldırıldı",
+      "note_added": "Not eklendi",
+      "note_resolved": "Not çözüldü",
+      "note_deleted": "Not silindi",
+      "import_uploaded": "Çeviri yüklendi",
+      "import_applied": "İçe aktarma uygulandı",
+      "import_failed": "İçe aktarma başarısız",
+      "import_discarded": "İçe aktarma iptal edildi",
+      "pipeline_succeeded": "İşlem hattı tamamlandı",
+      "pipeline_failed": "İşlem hattı başarısız"
+    },
+    "importStates": {
+      "ready": "Uygulanmaya hazır",
+      "needs_attention": "İnceleme gerekiyor",
+      "failed": "Başarısız",
+      "applied": "Uygulandı"
+    },
+    "imports": {
+      "empty": "Henüz içe aktarma yok.",
+      "counts": "kabul: {{accepted}} · hata: {{errors}} · uyarı: {{warnings}}",
+      "report": "CSV raporu",
+      "reportSaved": "Rapor kaydedildi"
+    },
+    "import": {
+      "title": "İçe aktarma önizlemesi",
+      "row": "Satır {{row}}",
+      "errorsCount": "Hata: {{count}}",
+      "warningsCount": "Uyarı: {{count}}",
+      "acceptedCount": "Uygulanacak: {{total}} içinden {{accepted}}",
+      "errorsHeading": "Engelleyici hatalar ({{count}})",
+      "warningsHeading": "Uyarılar ({{count}})",
+      "page": "Sayfa",
+      "segment": "Segment",
+      "source": "Kaynak",
+      "translation": "Çeviri",
+      "change": "Değişiklik",
+      "apply": "İçe aktarmayı uygula",
+      "discard": "Vazgeç",
+      "close": "Kapat",
+      "applyHint": "Dosyadaki hataları düzeltip yeniden yükleyin."
+    },
+    "importChanges": {
+      "new": "Yeni",
+      "changed": "Değişti",
+      "unchanged": "Değişmedi"
+    },
+    "duplicate": {
+      "title": "Bu dosya zaten yüklendi",
+      "description": "Aynı dosya bu siparişe zaten içe aktarıldı. Yinelenen kayıt oluşturulmadı.",
+      "ok": "Anladım"
+    },
+    "attach": {
+      "title": "Proje bağla",
+      "description": "Bir sipariş tek bir Koharu projesi içinde düzenlenir.",
+      "noProjects": "Henüz proje yok — aşağıdan yeni bir tane oluşturun.",
+      "newPlaceholder": "Yeni proje adı",
+      "createAndAttach": "Oluştur ve bağla"
+    }
   },
   "outputPicker": {
     "instructions": "Çeviri talimatları",
     "instructionsPlaceholder": "Üslup, adlar ve biçimlendirme için isteğe bağlı yönlendirme.",
+    "sourceLanguage": "Kaynak dil",
     "targetLanguage": "Hedef dil",
-    "title": "Çeviri çıktısı"
+    "title": "Çeviri çıktısı",
+    "validators": "Otomatik doğrulayıcılar"
+  },
+  "repairPresets": {
+    "delete": "Ön ayarı sil",
+    "label": "Ön ayar",
+    "name": "Ön ayar adı",
+    "placeholder": "Bir ön ayar seçin",
+    "rename": "Yeniden adlandır",
+    "save": "Ön ayar olarak kaydet"
+  },
+  "systemPrompt": {
+    "editBuiltIn": "Yerleşik istemi düzenle",
+    "hint": "Boş bırakılırsa yerleşik istem kullanılır. {source} ve {target} çalıştırmanın dillerini ekler.",
+    "label": "Sistem istemi",
+    "profile": "İçerik profili",
+    "profiles": {
+      "comic": "Çizgi roman",
+      "hentai": "Hentai",
+      "manga": "Manga"
+    }
+  },
+  "translationValidators": {
+    "add": "Kural ekle",
+    "chinese": "Çince Han karakterleri",
+    "customRule": "Özel doğrulama kuralı",
+    "japanese": "Japonca kana",
+    "korean": "Korece karakterler",
+    "latin": "Latin harfleri",
+    "name": "Kural adı",
+    "namePlaceholder": "ör. Latin harfleri yasakla",
+    "pattern": "Düzenli ifade",
+    "patternPlaceholder": "[A-Za-z]",
+    "presets": "Yazı engelleme ön ayarları",
+    "remove": "Kuralı kaldır"
   },
   "phase": {
+    "censor_detection": "Sansür algılama",
+    "decensor": "Sansür kaldırma",
     "detection": "Algılama",
     "inpainting": "Doldurma",
     "ocr": "OCR",
     "translation": "Çeviri"
   },
   "phaseDescription": {
+    "censor_detection": "Gizlenmiş alanları bulur ve maskelerini kaydeder.",
+    "decensor": "Sansürlenen alanları seçili modelle yeniden oluşturur.",
     "detection": "Sayfadaki metni bulur.",
     "inpainting": "Metin kaldırıldıktan sonra çizimi yeniden oluşturur.",
     "ocr": "Her bölgenin içindeki metni okur.",
@@ -321,6 +658,7 @@
     "atlas-cloud": "Atlas üzerinde barındırılan dil modelleri.",
     "caiyun": "Caiyun çeviri API'si.",
     "claude": "Anthropic Claude modelleri.",
+    "cursor": "Cursor Cloud Agent modelleri.",
     "deepl": "DeepL çeviri API'si.",
     "deepseek": "DeepSeek dil modelleri.",
     "gemini": "Google Gemini modelleri.",
@@ -335,14 +673,16 @@
   },
   "resources": {
     "cpu": "CPU",
+    "gpu": "GPU",
+    "gpuUtilization": "GPU kullanımı",
     "processUtilization": "İşlem kullanımı",
     "ram": "RAM",
-    "summary": "RAM %{{ram}}, CPU %{{cpu}}",
+    "summary": "RAM {{ram}}, CPU {{cpu}}",
+    "summaryGpu": "RAM {{ram}}, CPU {{cpu}}, GPU {{gpu}}",
     "title": "Sistem kaynakları",
-    "tooltip": "RAM {{ramUsed}} / {{ramTotal}} · CPU %{{cpu}}",
+    "unavailable": "Kullanılamıyor",
     "usedOfTotal": "{{total}} içinden {{used}} kullanılıyor",
-    "vramUnavailable": "Kullanılamıyor",
-    "vramValue": "{{value}} VRAM"
+    "vram": "VRAM"
   },
   "settings": {
     "appearance": {
@@ -372,6 +712,19 @@
       "temperature": "Sıcaklık",
       "reasoning": "Akıl yürütme",
       "reasoningDescription": "Çeviri sırasında model akıl yürütmesini kullanır.",
+      "reasoningLevel": "Akıl yürütme düzeyi",
+      "reasoningLevelDescription": "Akıl yürütme açıkken modelin ne kadar derin akıl yürüteceğini belirler. Varsayılan, sağlayıcının kendi ayarını korur.",
+      "reasoningLevelUnsupported": "Seçili model bu düzeyi sunmuyor. Başka bir düzey veya Varsayılan'ı seçin.",
+      "reasoningLevels": {
+        "high": "Yüksek",
+        "low": "Düşük",
+        "max": "Maksimum",
+        "medium": "Orta",
+        "minimal": "Minimum",
+        "xhigh": "Çok yüksek"
+      },
+      "reasoningOnOffOnly": "Bu modelin akıl yürütme düzeyi yok. Akıl yürütme yalnızca açılıp kapatılabilir.",
+      "reasoningUnsupported": "Bu model akıl yürütmeyi desteklemiyor.",
       "title": "Üretim",
       "topK": "İlk K",
       "topP": "Top P",
@@ -380,14 +733,44 @@
     },
     "loading": "Tercihler yükleniyor…",
     "pipeline": {
+      "censorDetection": {
+        "description": "Gizlenmiş alanları bulur ve maskelerini kaydeder.",
+        "title": "Sansür algılama"
+      },
       "description": "Her sayfayı işlemek için kullanılan modelleri ve seçenekleri seçin.",
       "modelLabel": "{{stage}} modeli",
       "options": {
         "bubbleThreshold": "Konuşma balonu eşiği",
+        "guidanceScale": "Yönlendirme ölçeği",
+        "inferenceSteps": "Çıkarım adımları",
+        "lineartStrength": "Çizgi sanatı gücü",
+        "loraPath": "LoRA dosyası (isteğe bağlı)",
+        "loraStrength": "LoRA gücü (0 = kapalı)",
         "negativePrompt": "Negatif istem",
         "panelThreshold": "Panel eşiği",
         "prompt": "İstem",
-        "textThreshold": "Metin eşiği"
+        "textThreshold": "Metin eşiği",
+        "endpoint": "ComfyUI adresi",
+        "checkpoint": "Checkpoint",
+        "controlnet": "ControlNet",
+        "positivePrompt": "Pozitif istem",
+        "seed": "Tohum",
+        "denoise": "Yeniden çizim",
+        "automaticCensorMask": "Otomatik sansür maskesi",
+        "detectMosaic": "Mozaikleri algıla",
+        "censorThreshold": "Sansür algılama eşiği",
+        "censorMaskGrow": "Sansür maskesi genişletme",
+        "censorMaskBlur": "Sansür maskesi bulanıklığı",
+        "maskPadding": "Maske boşluğu",
+        "maskGrow": "Maske genişletme",
+        "maskBlur": "Maske bulanıklığı",
+        "colorMatchStrength": "Renk eşleştirme",
+        "timeoutSeconds": "Zaman aşımı (saniye)"
+      },
+      "profiles": {
+        "flux2-klein-9b-uncensored": "Sansürsüz Q4_K_M metin kodlayıcılı damıtılmış 9B Q8",
+        "diffusioncreampy-animagine-xl-4": "Animagine XL 4.0 Opt ile anime ve manga için yerel ComfyUI SDXL inpainting.",
+        "diffusioncreampy-illustrious-xl-2": "Illustrious XL 2.0 ile ayrıntılı çizimler için yerel ComfyUI SDXL inpainting."
       },
       "processing": "İşleniyor",
       "stages": {
@@ -395,9 +778,21 @@
           "description": "Metinleri, konuşma balonlarını ve panelleri bulur.",
           "title": "Algılama"
         },
-        "inpainting": {
-          "description": "Kaldırılan metnin altındaki çizimi yeniden oluşturur.",
-          "title": "Doldurma"
+        "decensor": {
+          "description": "Sansürlenen alanları seçili modelle yeniden oluşturur.",
+          "title": "Sansür kaldırma"
+        },
+        "artwork": {
+          "description": "Konuşma balonları dışındaki metnin ve ses efektlerinin altındaki çizimi yeniden oluşturur.",
+          "title": "Çizim doldurma"
+        },
+        "manual": {
+          "description": "Bir maske çizip bağımsız istem ve ayarlarla FLUX onarımını çalıştırın.",
+          "title": "Elle doldurma (FLUX)"
+        },
+        "bubbles": {
+          "description": "Konuşma balonlarının içindeki metni hızla siler.",
+          "title": "Balon doldurma"
         },
         "ocr": {
           "description": "Algılanan bölgelerdeki kaynak metni okur.",
@@ -429,6 +824,7 @@
       "providers": "Sağlayıcılar",
       "shortcuts": "Kısayollar",
       "translation": "Çeviri",
+      "usage": "Token kullanımı",
       "typesetting": "Dizgi"
     },
     "title": "Ayarlar",
@@ -444,6 +840,11 @@
       "quantization": "Niceleme",
       "quantizationDescription": "Daha küçük biçimler daha az bellek kullanır, ancak genellikle kalite düşer.",
       "selectQuantization": "Niceleme seç",
+      "sourceLanguageDescription": "Kaynak metnin yazıldığı dili seçin.",
+      "systemPrompt": "Sistem istemi",
+      "systemPromptDescription": "Düzenleyici çalıştırmaları için profili seçin. Her profil kendi istemini korur; Telegram siparişleri kendi profilini kullanır.",
+      "validators": "Otomatik doğrulayıcılar",
+      "validatorsDescription": "Eşleşen çeviri metnini reddeder ve düzeltici geri bildirimle bir kez yeniden üretir.",
       "targetLanguageDescription": "Metnin çevrileceği dili seçin.",
       "title": "Çeviri",
       "translationModel": "Çeviri modeli",
@@ -499,38 +900,110 @@
     "brushSizePixels": "Fırça boyutu: {{size}} piksel",
     "brushSizeShort": "{{size}} px",
     "color_picker": "Renk seçici",
+    "decensor": "Sansür kaldırma",
     "decreaseBrushSize": "Fırça boyutunu azalt",
     "draw": "Çizim",
     "eraser": "Silgi",
     "increaseBrushSize": "Fırça boyutunu artır",
     "pan": "Kaydır",
-    "remove": "Kaldır",
+    "fast": "Fast",
+    "inpainting": "Inpainting (FLUX)",
+    "applyRepairSettings": "Ayarları uygula",
+    "repairSettingsHint": "Çizmeden önce ayarları uygulayın. Kabul edilen maskeler önceki ayarlarını korur.",
     "select": "Seç",
     "text": "Metin"
   },
-  "updater": {
-    "available": {
-      "description": "Koharu <strong>{{version}}</strong> yüklenmeye hazır",
-      "title": "Güncelleme mevcut"
-    },
-    "close": "Kapat",
-    "downloading": {
-      "subtitle": "Koharu {{version}}",
-      "title": "Güncelleme indiriliyor…"
-    },
-    "error": {
-      "description": "Güncelleme sırasında bir hata oluştu",
-      "title": "Güncelleme başarısız"
-    },
-    "later": "Daha sonra",
-    "noNotes": "Sürüm notu sağlanmadı.",
-    "retry": "Tekrar dene",
-    "update": "Güncelle"
+  "usage": {
+    "title": "Token kullanımı",
+    "description": "Çeviri ve AI aracısının her isteği için yerel kullanım kaydı.",
+    "privacy": "İstemler, görseller, yanıtlar, kimlik bilgileri ve akıl yürütme metni kaydedilmez.",
+    "unknownNotice": "Tire, sağlayıcının değeri bildirmediğini belirtir. Maliyetler tahmin değil, bildirilen değerlerdir. Akıl yürütme ve önbellek sayaçları ayrıntıdır; toplama yeniden eklenmez.",
+    "provider": "Sağlayıcı",
+    "model": "Model",
+    "from": "Başlangıç",
+    "to": "Bitiş günü dahil",
+    "apply": "Filtreleri uygula",
+    "refresh": "Yenile",
+    "requests": "İstekler",
+    "input": "Girdi tokenları",
+    "output": "Çıktı tokenları",
+    "total": "Toplam token",
+    "cost": "Bildirilen maliyet",
+    "missingUsage": "Token kullanımı bildirilmeyen istekler: {{count}}",
+    "missingCost": "Maliyeti bildirilmeyen istekler: {{count}}",
+    "coverage": "{{total}} isteğin {{known}} tanesinde bildirildi",
+    "empty": "Bu filtrelere uyan istek yok.",
+    "failed": "Yerel kullanım kaydı okunamadı.",
+    "time": "Zaman",
+    "operation": "İşlem",
+    "status": "Sonuç",
+    "latency": "Süre",
+    "details": "İstek ayrıntıları",
+    "detailsFor": "{{id}} numaralı isteğin ayrıntıları",
+    "previous": "Daha yeni",
+    "next": "Daha eski",
+    "page": "Sayfa {{number}}",
+    "identity": "İstek ve bağlam",
+    "tokens": "Token dökümü",
+    "parameters": "Üretim parametreleri",
+    "invalidDates": "Başlangıç tarihi bitiş tarihinden sonra olamaz.",
+    "storage": "Yerel kayıt: {{path}}",
+    "fields": {
+      "provider": "Sağlayıcı",
+      "requested_model": "İstenen model",
+      "resolved_model": "Bildirilen model",
+      "request_id": "Sağlayıcı istek kimliği",
+      "response_id": "Sağlayıcı yanıt kimliği",
+      "attempt": "Deneme",
+      "http_status": "HTTP durumu",
+      "error_kind": "Hata sınıfı",
+      "project_id": "Proje",
+      "page_id": "Sayfa",
+      "job_id": "İş / çalıştırma",
+      "source_language": "Kaynak dil",
+      "target_language": "Hedef dil",
+      "segment_count": "Bölümler",
+      "image_count": "Görseller",
+      "context_count": "Bağlam girdileri",
+      "reasoning": "Akıl yürütme açık",
+      "reasoning_effort": "Akıl yürütme düzeyi",
+      "reasoning_tokens": "Akıl yürütme tokenları",
+      "cache_read_tokens": "Önbellek girdi tokenları",
+      "cache_write_tokens": "Önbelleğe yazılan tokenlar",
+      "image_input_tokens": "Görsel girdi tokenları",
+      "image_output_tokens": "Görsel çıktı tokenları",
+      "audio_input_tokens": "Ses girdi tokenları",
+      "audio_output_tokens": "Ses çıktı tokenları",
+      "cost_source": "Maliyet kaynağı"
+    }
   },
   "window": {
     "close": "Kapat",
     "maximize": "Ekranı kapla",
     "minimize": "Simge durumuna küçült",
     "restore": "Geri yükle"
+  },
+  "galleryImport": {
+    "cancel": "İptal",
+    "close": "Kapat",
+    "cookies": "exhentai çerezleri",
+    "cookiesHint": "ipb_member_id, ipb_pass_hash ve igneous içeren bir cookie başlığı yapıştırın. Sistem anahtar zincirinde saklanır ve bir daha gösterilmez.",
+    "cookiesOptional": "(yalnızca exhentai için)",
+    "description": "Birden fazla galeriyi verilen sırayla yeni bir projeye indirin. e-hentai, exhentai ve nhentai bağlantıları desteklenir.",
+    "downloading": "Sayfalar indiriliyor…",
+    "error": "İçe aktarma başarısız oldu. Bağlantıları kontrol edip tekrar deneyin.",
+    "galleries": "Galeriler",
+    "import": "İçe aktar",
+    "importing": "İçe aktarılıyor…",
+    "importingPages": "Proje oluşturuluyor…",
+    "inspecting": "Galeri bilgileri okunuyor…",
+    "name": "Proje adı",
+    "nameOptional": "(isteğe bağlı)",
+    "pages": "Sayfalar",
+    "progress": "İçe aktarma ilerlemesi",
+    "success": "Proje oluşturuldu",
+    "title": "Galerileri içe aktar",
+    "urls": "Galeri bağlantıları (satır başına bir tane, en fazla 20)",
+    "urlsPlaceholder": "https://e-hentai.org/g/123456/abcdef0123/\nhttps://nhentai.net/g/654321/"
   }
 }

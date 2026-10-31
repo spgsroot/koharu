@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Providers from '@/app/providers'
 import { call } from '@/lib/backend'
 import { useProject } from '@/lib/queries'
-import { useKoharuStore } from '@/lib/store'
+import { receiveJob, useKoharuStore } from '@/lib/store'
 import {
   commands,
   type Preferences,
@@ -37,10 +37,21 @@ const preferences: Preferences = {
         reasoning: false,
       },
       generation: { vision: true, reasoning: true },
+      source_language: 'ja-JP',
       target_language: 'en-US',
+      content_profile: 'manga',
+      system_prompts: { hentai: null, manga: null, comic: null },
       instructions: null,
+      validators: [],
     },
-    inpainting: { model: 'lama' },
+    inpainting: {
+      bubbles: 'lama',
+      artwork: { model: 'flux2-klein-9b-uncensored' },
+      manual: {},
+      manual_presets: [],
+    },
+    decensor: { model: 'flux2-klein-9b-uncensored' },
+    censor_detection: {},
     processor: {},
   },
   providers: {
@@ -50,14 +61,19 @@ const preferences: Preferences = {
     font_families: ['CCWildWords', 'Adobe 黑体 Std'],
   },
   languages: [],
+  default_system_prompts: { hentai: '', manga: '', comic: '' },
+  ui: { orders: true },
+  default_manual_inpainting_presets: [],
 }
 
 const project: ProjectInfo = {
+  session: 'book-session',
   name: 'Book',
   revision: 3,
   active_page: null,
   can_undo: true,
   can_redo: false,
+  history: { entries: [], snapshots: [], cursor: 0 },
 }
 
 beforeEach(() => {
@@ -118,6 +134,7 @@ describe('Tauri runtime', () => {
     act(() => {
       jobChannel.onmessage({
         id: 'job',
+        kind: 'pipeline',
         state: 'running',
         completed: 0,
         total: 4,
@@ -125,6 +142,7 @@ describe('Tauri runtime', () => {
         stage: 'detection',
         model: 'model',
         error: null,
+        policy_rejected_pages: [],
       })
     })
 
@@ -183,6 +201,7 @@ describe('Tauri runtime', () => {
     const [, jobChannel] = binding.mock.calls[0]
     jobChannel.onmessage({
       id: 'job',
+      kind: 'pipeline',
       state: 'running',
       completed: 1,
       total: 2,
@@ -190,10 +209,36 @@ describe('Tauri runtime', () => {
       stage: 'ocr',
       model: 'model',
       error: null,
+      policy_rejected_pages: [],
     })
 
     expect(await screen.findByText('Book')).toBeInTheDocument()
     view.unmount()
+  })
+
+  it('removes a mask when its terminal event arrives before its admission reply', () => {
+    const store = useKoharuStore.getState()
+    store.clearPendingMasks()
+    const mask = store.addPendingMask({
+      page: 'page',
+      target: 'fast',
+      points: [{ x: 10, y: 10 }],
+      diameter: 16,
+    })
+    receiveJob({
+      id: 'mask-job',
+      kind: 'cleanup',
+      state: 'finished',
+      completed: 1,
+      total: 1,
+      page: 'page',
+      stage: 'inpainting',
+      model: 'lama',
+      error: null,
+      policy_rejected_pages: [],
+    })
+    store.bindPendingMask(mask, 'mask-job')
+    expect(useKoharuStore.getState().pendingMasks).toEqual([])
   })
 })
 

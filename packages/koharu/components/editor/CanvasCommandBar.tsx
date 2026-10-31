@@ -2,6 +2,7 @@
 
 import { InferenceControl } from '@/components/editor/InferenceControl'
 import { call } from '@/lib/backend'
+import { isActivePipeline } from '@/lib/jobs'
 import { usePage } from '@/lib/queries'
 import { pipelineStages, useKoharuStore, type PipelineScope } from '@/lib/store'
 import { commands, type Scope, type Stage } from '@koharu/bridge/protocol'
@@ -10,7 +11,7 @@ export function CanvasCommandBar() {
   const page = usePage().data
   const selectedPages = useKoharuStore((state) => state.selectedPages)
   const jobs = useKoharuStore((state) => state.jobs)
-  const running = Object.values(jobs).find((job) => job.state === 'running')
+  const running = Object.values(jobs).find(isActivePipeline)
 
   const run = (selection: PipelineScope, stages: Stage[]) => {
     if (!page) return

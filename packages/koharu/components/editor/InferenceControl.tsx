@@ -16,11 +16,11 @@ import { useTranslation } from 'react-i18next'
 
 import { ModelPicker } from '@/components/controls/ModelPicker'
 import { OutputPicker, type OutputDraft } from '@/components/controls/OutputPicker'
-import { call, refreshTranslationModels, savePreferences } from '@/lib/backend'
+import { refreshTranslationModels, savePreferences } from '@/lib/backend'
+import { isActivePipeline, stopJobs } from '@/lib/jobs'
 import { pipelineStages, receivePreferences, useKoharuStore, type PipelineScope } from '@/lib/store'
-import { modelKey, modelSelection, providerName } from '@/lib/translation'
+import { modelKey, providerName, translationWithModel } from '@/lib/translation'
 import {
-  commands,
   type Model,
   type ModelSelection,
   type ProviderPreference,
@@ -46,12 +46,12 @@ export function InferenceControl({
   const setStages = useKoharuStore((state) => state.setProcessingStages)
   const jobs = useKoharuStore((state) => state.jobs)
   const selectedPages = useKoharuStore((state) => state.selectedPages)
-  const running = Object.values(jobs).find((job) => job.state === 'running') ?? null
+  const running = Object.values(jobs).find(isActivePipeline) ?? null
   const unavailable = scope === 'selected-pages' && selectedPages.length === 0
 
   const stop = () => {
     if (!running) return
-    void call(commands.stopJob, running.id).catch(() => undefined)
+    void stopJobs(Object.values(jobs).filter(isActivePipeline))
   }
 
   return (
@@ -115,10 +115,13 @@ function RuntimeSelector({
   const modelLabel =
     choices.find((choice) => model && modelKey(choice) === modelKey(model))?.name ??
     (model ? (model.model ?? t('inference.providerDefault')) : t('inference.noModel'))
-  const outputLabel =
+  const outputLanguage =
     languages.find((language) => language.tag === translation?.target_language)?.name ??
     translation?.target_language ??
     t('inference.notSet')
+  const outputLabel = translation
+    ? `${outputLanguage} · ${t(`systemPrompt.profiles.${translation.content_profile}`)}`
+    : outputLanguage
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
@@ -141,10 +144,7 @@ function RuntimeSelector({
     setSavingModel(key)
     const pipeline = {
       ...preferences.pipeline,
-      translation: {
-        ...preferences.pipeline.translation,
-        model: modelSelection(next),
-      },
+      translation: translationWithModel(preferences.pipeline.translation, next),
     }
     void savePreferences(pipeline, preferences.providers, preferences.typesetting)
       .then((saved) => {
@@ -166,8 +166,12 @@ function RuntimeSelector({
       ...preferences.pipeline,
       translation: {
         ...translation,
+        source_language: draft.sourceLanguage,
         target_language: draft.targetLanguage,
+        content_profile: draft.contentProfile,
+        system_prompts: draft.systemPrompts,
         instructions: draft.instructions || null,
+        validators: draft.validators,
       },
     }
     void savePreferences(pipeline, preferences.providers, preferences.typesetting)
@@ -322,10 +326,24 @@ function RuntimeSelector({
               onSelect={toggleStage}
             />
             <SelectorOption
+              value='censor_detection'
+              label={t('phase.censor_detection')}
+              detail={t('phaseDescription.censor_detection')}
+              selected={stages.includes('censor_detection')}
+              onSelect={toggleStage}
+            />
+            <SelectorOption
               value='inpainting'
               label={t('phase.inpainting')}
               detail={t('phaseDescription.inpainting')}
               selected={stages.includes('inpainting')}
+              onSelect={toggleStage}
+            />
+            <SelectorOption
+              value='decensor'
+              label={t('phase.decensor')}
+              detail={t('phaseDescription.decensor')}
+              selected={stages.includes('decensor')}
               onSelect={toggleStage}
             />
           </SelectorPanel>
@@ -333,8 +351,13 @@ function RuntimeSelector({
 
         {view === 'output' && translation && (
           <OutputPicker
+            sourceLanguage={translation.source_language}
             targetLanguage={translation.target_language}
+            contentProfile={translation.content_profile}
+            systemPrompts={translation.system_prompts}
+            defaultPrompts={preferences?.default_system_prompts ?? null}
             instructions={translation.instructions}
+            validators={translation.validators}
             languages={languages}
             disabled={running}
             saving={savingOutput}
@@ -451,6 +474,8 @@ function availableModels(
       quantizations: [],
       vision: selected.vision ?? false,
       reasoning: selected.reasoning ?? false,
+      reasoning_efforts: selected.reasoning_efforts ?? [],
+      reasoning_always_on: selected.reasoning_always_on ?? false,
     },
     ...models,
   ]

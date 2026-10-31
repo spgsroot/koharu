@@ -94,5 +94,12 @@ export function useImportPages() {
 }
 
 export async function refresh(...keys: QueryKey[]): Promise<void> {
-  await Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
+  await Promise.all(
+    keys.map(async (queryKey) => {
+      // An initial, still-pending query may describe the scene before the
+      // mutation. Invalidating it alone would reuse that stale request.
+      await queryClient.cancelQueries({ queryKey })
+      await queryClient.invalidateQueries({ queryKey })
+    }),
+  )
 }

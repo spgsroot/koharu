@@ -99,10 +99,12 @@ function installProject() {
     id: 'page',
     label: 'Page',
     size: { width: 1000, height: 1000 },
+    censor_mask_asset: null,
     layers: [layer],
     regions: [],
   }
   queryClient.setQueryData(projectKey, {
+    session: 'book-session',
     name: 'Book',
     revision: 1,
     active_page: 'page',
@@ -136,6 +138,32 @@ function renderWorkspace() {
 }
 
 describe('canvas interaction adapter', () => {
+  it('previews the detected mask at the page camera transform and hides it on toggle', async () => {
+    installProject()
+    queryClient.setQueryData(pageKey, (previous: Record<string, unknown>) => ({
+      ...previous,
+      censor_mask_asset: 'mask-1',
+    }))
+    const getMask = vi.spyOn(commands, 'getCensorMask').mockResolvedValue([1, 2, 3])
+    const surface = renderWorkspace()
+    useKoharuStore.setState({ camera: { zoom: 2, translation: [10, 20], fitted: false } })
+
+    const toggle = screen.getByRole('button', { name: 'Censor mask' })
+    expect(surface.querySelector('img')).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    await waitFor(() =>
+      expect(surface.querySelector('img')).toHaveStyle({
+        left: '10px',
+        top: '20px',
+        width: '2000px',
+        height: '2000px',
+      }),
+    )
+    expect(getMask).toHaveBeenCalledWith('page')
+    fireEvent.click(toggle)
+    expect(surface.querySelector('img')).not.toBeInTheDocument()
+  })
+
   it('prefetches only after the authoritative canvas page and generation are active', async () => {
     installProject()
     queryClient.setQueryData(pagesKey, [
@@ -251,26 +279,34 @@ describe('canvas interaction adapter', () => {
   it.each([
     ['revision', { canvasRevision: 2 }],
     ['generation', { canvasGeneration: 2 }],
-  ])('cancels an active gesture when the canvas %s changes', async (_name, update) => {
-    installProject()
-    useKoharuStore.setState({ tool: 'draw', brush: { diameter: 48, color: '#FFFFFF' } })
-    const commit = vi
-      .spyOn(commands, 'commitPaint')
-      .mockResolvedValue({ revision: 2, layer: 'paint' })
-    const surface = renderWorkspace()
+  ])(
+    'keeps an active stroke when a concurrent job changes the canvas %s',
+    async (_name, update) => {
+      installProject()
+      useKoharuStore.setState({ tool: 'draw', brush: { diameter: 48, color: '#FFFFFF' } })
+      const commit = vi
+        .spyOn(commands, 'commitPaint')
+        .mockResolvedValue({ revision: 3, layer: 'paint' })
+      const surface = renderWorkspace()
 
-    fireEvent.pointerDown(surface, { button: 0, pointerId: 8, clientX: 30, clientY: 40 })
-    expect(canvas.beginStroke).toHaveBeenCalledOnce()
+      fireEvent.pointerDown(surface, { button: 0, pointerId: 8, clientX: 30, clientY: 40 })
+      expect(canvas.beginStroke).toHaveBeenCalledOnce()
 
-    act(() => {
-      useKoharuStore.setState(update)
-    })
+      act(() => {
+        useKoharuStore.setState(update)
+      })
 
-    await waitFor(() => expect(canvas.cancelStroke).toHaveBeenCalledOnce())
-    fireEvent.pointerUp(surface, { pointerId: 8, clientX: 30, clientY: 40 })
-    expect(canvas.finishStroke).not.toHaveBeenCalled()
-    expect(commit).not.toHaveBeenCalled()
-  })
+      fireEvent.pointerUp(surface, { pointerId: 8, clientX: 30, clientY: 40 })
+      await waitFor(() => expect(commit).toHaveBeenCalledOnce())
+      expect(canvas.cancelStroke).not.toHaveBeenCalled()
+      // The commit names the revision the stroke started on; Rust applies it on
+      // top of the concurrent commit instead of the editor discarding it.
+      expect(commit).toHaveBeenCalledWith(1, null, expect.any(Array), {
+        diameter: 48,
+        color: [255, 255, 255, 255],
+      })
+    },
+  )
 
   it('uses rendered text bounds for hit testing and semantic transforms', async () => {
     installProject()
@@ -453,23 +489,21 @@ describe('canvas interaction adapter', () => {
     expect(commit).toHaveBeenCalledWith(1, 'paint', expect.arrayContaining([{ x: 20, y: 20 }]), 48)
   })
 
-  it('maps the Remove tool to an inpainting mask gesture', async () => {
+  it('drops a cleanup stroke when the tool changes mid-gesture', async () => {
     installProject()
-    useKoharuStore.setState({ tool: 'remove' })
+    useKoharuStore.setState({ tool: 'decensor' })
     const commit = vi.spyOn(commands, 'commitInpaint').mockResolvedValue('job')
     const surface = renderWorkspace()
 
-    fireEvent.pointerDown(surface, { button: 0, pointerId: 12, clientX: 30, clientY: 40 })
-    fireEvent.pointerUp(surface, { pointerId: 12, clientX: 30, clientY: 40 })
-
-    await waitFor(() => expect(commit).toHaveBeenCalledOnce())
-    expect(canvas.beginStroke).toHaveBeenCalledWith({
-      kind: 'inpaint',
-      layer: null,
-      point: { x: 20, y: 20 },
-      diameter: 48,
+    fireEvent.pointerDown(surface, { button: 0, pointerId: 16, clientX: 30, clientY: 40 })
+    act(() => {
+      useKoharuStore.setState({ tool: 'fast' })
     })
-    expect(commit).toHaveBeenCalledWith(1, expect.arrayContaining([{ x: 20, y: 20 }]), 48)
+
+    await waitFor(() => expect(canvas.cancelStroke).toHaveBeenCalledOnce())
+    fireEvent.pointerUp(surface, { pointerId: 16, clientX: 30, clientY: 40 })
+    expect(canvas.finishStroke).not.toHaveBeenCalled()
+    expect(commit).not.toHaveBeenCalled()
   })
 
   it('creates point text on click and paragraph text on drag', async () => {

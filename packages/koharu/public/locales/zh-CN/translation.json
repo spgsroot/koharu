@@ -6,19 +6,26 @@
     "version": "版本"
   },
   "activity": {
+    "queued": "排队中",
     "dismiss": "关闭",
     "downloadFailed": "下载失败。",
     "downloadingFiles": "正在下载 {{count}} 个文件",
     "downloadingFiles_one": "正在下载 {{count}} 个文件",
     "downloadingFiles_other": "正在下载 {{count}} 个文件",
+    "importApply": "应用",
+    "importDiscard": "放弃",
+    "importIssues": "{{errors}} 个错误 · {{warnings}} 个警告",
     "modelDownload": "模型下载",
     "processing": "正在处理",
+    "pageLabel": "第 {{number}} 页：{{label}}",
     "processingFailed": "处理失败。",
     "stop": "停止",
     "title": "活动"
   },
   "agent": {
     "account": "ChatGPT 账户",
+    "accountGrok": "xAI 账户",
+    "accountKimi": "Kimi Code 账户",
     "applying": "正在应用项目更改…",
     "automatic": "自动",
     "cancel": "取消",
@@ -31,8 +38,11 @@
     "loading": "正在加载 Codex…",
     "message": "向 Koharu 智能体发送消息",
     "model": "Codex 模型",
+    "modelGrok": "Grok 模型",
+    "modelKimi": "Kimi 模型",
     "placeholder": "让 Koharu 处理此项目…",
     "properties": "属性",
+    "provider": "提供方",
     "reasoning": "推理",
     "reasoningLevels": {
       "high": "高",
@@ -45,7 +55,13 @@
     "send": "发送",
     "signIn": "使用 Codex 登录",
     "signInDescription": "使用你的 ChatGPT 订阅登录。Koharu 使用设备代码身份验证，绝不会要求提供 API 密钥。",
+    "signInDescriptionGrok": "使用你的 xAI 账户登录。Koharu 使用设备代码身份验证，绝不会要求提供 API 密钥。",
+    "signInDescriptionKimi": "使用你的 Kimi Code 订阅登录。Koharu 使用设备码认证，从不索要 API 密钥。",
+    "signInGrok": "使用 Grok 登录",
+    "signInKimi": "使用 Kimi 登录",
     "signInTitle": "连接 Codex",
+    "signInTitleGrok": "连接 Grok",
+    "signInTitleKimi": "连接 Kimi",
     "signOut": "退出登录",
     "signingIn": "正在等待登录…",
     "thinking": "正在思考…",
@@ -53,8 +69,10 @@
     "working": "正在工作…"
   },
   "canvas": {
+    "censorMask": "审查遮罩",
     "empty": "请选择页面以开始。",
     "fit": "适应窗口",
+    "noCensorMask": "运行审查检测后可预览遮罩",
     "surface": "Koharu 画布",
     "unavailable": "WebGPU 画布不可用"
   },
@@ -121,6 +139,41 @@
       "system": "系统"
     },
     "style": "样式"
+  },
+  "history": {
+    "title": "历史记录",
+    "clear": "清除历史记录",
+    "clearConfirmTitle": "要清除历史记录吗?",
+    "clearConfirmDescription": "将删除所有撤销和重做状态,文档本身不受影响。",
+    "clearConfirmAction": "清除",
+    "snapshot": "创建快照",
+    "snapshots": "快照",
+    "restore": "恢复",
+    "deleteSnapshot": "删除快照",
+    "empty": "暂无记录的操作。",
+    "state": {
+      "open": "打开",
+      "import_pages": "导入页面",
+      "import_translations": "翻译导入",
+      "rename_page": "重命名页面",
+      "delete_pages": "删除页面",
+      "move_page": "移动页面",
+      "add_text": "添加文本",
+      "source_text": "源文本",
+      "translation": "翻译",
+      "typography": "排版",
+      "geometry": "几何",
+      "transform": "变换",
+      "toggle_layer": "图层可见性",
+      "opacity": "不透明度",
+      "delete_layers": "删除图层",
+      "paste_layers": "粘贴图层",
+      "move_layer": "移动图层",
+      "brush": "画笔工具",
+      "erase": "橡皮擦",
+      "snapshot_restore": "恢复快照",
+      "pipeline_stage": "处理"
+    }
   },
   "inference": {
     "currentPage": "当前页面",
@@ -243,6 +296,9 @@
     "about": "关于",
     "closeProject": "关闭项目",
     "delete": "删除所选项",
+    "copy": "复制",
+    "cut": "剪切",
+    "paste": "粘贴",
     "discord": "Discord",
     "edit": "编辑",
     "exportPng": "导出 PNG…",
@@ -267,6 +323,7 @@
     "baseUrl": "基础 URL",
     "default": "默认",
     "instructions": "翻译说明",
+    "sourceLanguage": "源语言",
     "targetLanguage": "目标语言"
   },
   "modelPicker": {
@@ -297,21 +354,301 @@
     "pages": "页面",
     "rename": "重命名",
     "renameDescription": "为此页面选择一个新名称。",
-    "renameTitle": "重命名页面"
+    "renameTitle": "重命名页面",
+    "selected": "已选择 {{count}}"
+  },
+  "orders": {
+    "workspace": {
+      "orders": "订单",
+      "editor": "编辑器",
+      "projects": "所有项目"
+    },
+    "breadcrumb": {
+      "order": "订单 {{number}}"
+    },
+    "header": {
+      "searchPlaceholder": "按编号、标题、客户搜索…",
+      "filters": "筛选",
+      "createOrder": "创建订单"
+    },
+    "summary": {
+      "overdue": "已逾期",
+      "due_today": "今日到期",
+      "blocked": "已阻塞",
+      "ready": "可交付"
+    },
+    "views": {
+      "label": "已保存的视图",
+      "attention": "需注意",
+      "mine": "我的",
+      "today": "今天",
+      "all": "全部"
+    },
+    "filters": {
+      "lifecycle": "状态",
+      "stage": "阶段",
+      "anyStage": "任意阶段",
+      "assignee": "负责人",
+      "client": "客户",
+      "needsAttention": "仅显示需注意项目"
+    },
+    "lifecycle": {
+      "active": "进行中",
+      "on_hold": "已暂停",
+      "completed": "已完成",
+      "delivered": "已交付",
+      "cancelled": "已取消",
+      "confirm": "将状态更改为\"{{status}}\"?"
+    },
+    "stages": {
+      "title": "制作阶段",
+      "intake": "受理",
+      "preparation": "准备",
+      "translation": "翻译",
+      "editing": "编辑",
+      "typesetting": "排版",
+      "qa": "质量控制",
+      "delivery": "交付",
+      "lockedHint": "请先解决阻塞备注。",
+      "block": "阻塞",
+      "unblock": "解除阻塞",
+      "complete": "完成阶段",
+      "next": "下一阶段",
+      "returnToEditing": "返回编辑",
+      "blockPlaceholder": "是什么阻塞了此阶段?",
+      "blockSubmit": "阻塞该阶段",
+      "allDone": "所有阶段均已完成。"
+    },
+    "stageStates": {
+      "not_started": "未开始",
+      "in_progress": "进行中",
+      "blocked": "已阻塞",
+      "done": "已完成"
+    },
+    "priority": {
+      "normal": "普通",
+      "high": "高",
+      "urgent": "加急"
+    },
+    "attention": {
+      "overdue": "已逾期",
+      "due_soon": "即将到期",
+      "blocked": "已阻塞",
+      "import_failed": "导入失败",
+      "import_unreviewed": "导入待审核",
+      "pipeline_failed": "流程失败",
+      "ready_to_deliver": "可交付",
+      "stale": "无活动"
+    },
+    "sla": {
+      "ok": "正常",
+      "risk": "有风险",
+      "breached": "已逾期"
+    },
+    "table": {
+      "order": "订单",
+      "assignee": "负责人",
+      "deadline": "截止日期",
+      "progress": "共 {{total}} 页,已完成 {{translated}} 页",
+      "progressTitle": "进度",
+      "progressLabel": "翻译进度",
+      "noPages": "无页面",
+      "sla": "SLA",
+      "stage": "阶段",
+      "status": "状态",
+      "attention": "注意",
+      "actions": "操作",
+      "empty": "未找到订单。",
+      "total": "订单:{{count}} 个",
+      "open": "打开",
+      "addBlocker": "为订单 {{number}} 添加阻塞项",
+      "addBlockerHint": "快速阻塞",
+      "sortNearestOn": "截止日期最近优先",
+      "sortNearestOff": "默认排序"
+    },
+    "blockerDialog": {
+      "title": "新建阻塞项",
+      "description": "订单 {{number}}。阻塞备注会暂停当前阶段。",
+      "placeholder": "是什么阻碍了工作推进?",
+      "submit": "阻塞该阶段"
+    },
+    "sheet": {
+      "title": "订单",
+      "editTitle": "编辑标题",
+      "edit": "编辑",
+      "pagesChip": "页面:{{total}} 中的 {{translated}}",
+      "blockersChip": "阻塞项:{{count}}"
+    },
+    "actions": {
+      "openEditor": "打开编辑器",
+      "attachProject": "关联项目",
+      "exportXlsx": "导出(XLSX)",
+      "exportCsv": "CSV",
+      "import": "导入翻译",
+      "exportSaved": "文件已保存"
+    },
+    "form": {
+      "number": "编号",
+      "numberPlaceholder": "ORD-2026-0001(可选)",
+      "title": "标题",
+      "clientName": "客户",
+      "assignee": "负责人",
+      "priority": "优先级",
+      "lifecycle": "状态",
+      "sourceLanguage": "源语言",
+      "targetLanguage": "目标语言",
+      "deadline": "截止日期",
+      "brief": "需求简报",
+      "description": "订单是管理记录,页面内容保存在项目中。",
+      "createTitle": "新建订单",
+      "editTitle": "编辑订单 {{number}}",
+      "create": "创建订单",
+      "save": "保存"
+    },
+    "tabs": {
+      "main": "概览",
+      "notes": "备注",
+      "activity": "动态",
+      "imports": "导入"
+    },
+    "notes": {
+      "kind": "备注类型",
+      "placeholder": "备注内容…",
+      "add": "添加备注",
+      "empty": "暂无备注。",
+      "resolved": "由 {{by}} 解决",
+      "resolve": "解决",
+      "reopen": "重新打开",
+      "delete": "删除",
+      "deleteConfirm": "删除此备注?此操作将记录在动态日志中。"
+    },
+    "noteKinds": {
+      "internal": "内部",
+      "client": "客户",
+      "blocker": "阻塞",
+      "qa": "质量控制"
+    },
+    "activity": {
+      "empty": "暂无事件。",
+      "order_created": "订单已创建",
+      "order_updated": "订单已更新",
+      "project_attached": "项目已关联",
+      "project_detached": "已解除项目关联",
+      "lifecycle_changed": "状态已更改",
+      "stage_started": "阶段已开始",
+      "stage_completed": "阶段已完成",
+      "stage_blocked": "阶段已阻塞",
+      "stage_unblocked": "阶段已解除阻塞",
+      "note_added": "备注已添加",
+      "note_resolved": "备注已解决",
+      "note_deleted": "备注已删除",
+      "import_uploaded": "翻译已上传",
+      "import_applied": "导入已应用",
+      "import_failed": "导入失败",
+      "import_discarded": "导入已放弃",
+      "pipeline_succeeded": "流程已完成",
+      "pipeline_failed": "流程失败"
+    },
+    "importStates": {
+      "ready": "待应用",
+      "needs_attention": "待审核",
+      "failed": "失败",
+      "applied": "已应用"
+    },
+    "imports": {
+      "empty": "暂无导入记录。",
+      "counts": "已接受:{{accepted}} · 错误:{{errors}} · 警告:{{warnings}}",
+      "report": "CSV 报告",
+      "reportSaved": "报告已保存"
+    },
+    "import": {
+      "title": "导入预览",
+      "row": "第 {{row}} 行",
+      "errorsCount": "错误:{{count}}",
+      "warningsCount": "警告:{{count}}",
+      "acceptedCount": "将应用:{{total}} 条中的 {{accepted}} 条",
+      "errorsHeading": "阻塞性错误({{count}})",
+      "warningsHeading": "警告({{count}})",
+      "page": "页面",
+      "segment": "片段",
+      "source": "原文",
+      "translation": "译文",
+      "change": "更改",
+      "apply": "应用导入",
+      "discard": "放弃",
+      "close": "关闭",
+      "applyHint": "请修复文件中的错误后重新上传。"
+    },
+    "importChanges": {
+      "new": "新增",
+      "changed": "已更改",
+      "unchanged": "未更改"
+    },
+    "duplicate": {
+      "title": "此文件已上传过",
+      "description": "同一文件已导入此订单,未创建重复项。",
+      "ok": "知道了"
+    },
+    "attach": {
+      "title": "关联项目",
+      "description": "订单在单个 Koharu 项目中编辑。",
+      "noProjects": "暂无项目 — 请在下方新建。",
+      "newPlaceholder": "新项目名称",
+      "createAndAttach": "创建并关联"
+    }
   },
   "outputPicker": {
     "instructions": "翻译说明",
     "instructionsPlaceholder": "关于语气、名称和格式的可选说明。",
+    "sourceLanguage": "源语言",
     "targetLanguage": "目标语言",
-    "title": "翻译输出"
+    "title": "翻译输出",
+    "validators": "自动验证器"
+  },
+  "repairPresets": {
+    "delete": "删除预设",
+    "label": "预设",
+    "name": "预设名称",
+    "placeholder": "选择预设",
+    "rename": "重命名",
+    "save": "另存为预设"
+  },
+  "systemPrompt": {
+    "editBuiltIn": "编辑内置提示词",
+    "hint": "留空时使用内置提示词。{source} 和 {target} 会替换为本次运行的语言。",
+    "label": "系统提示词",
+    "profile": "内容配置",
+    "profiles": {
+      "comic": "漫画（欧美）",
+      "hentai": "成人漫画",
+      "manga": "日式漫画"
+    }
+  },
+  "translationValidators": {
+    "add": "添加规则",
+    "chinese": "中文汉字",
+    "customRule": "自定义验证规则",
+    "japanese": "日语假名",
+    "korean": "韩文字符",
+    "latin": "拉丁字母",
+    "name": "规则名称",
+    "namePlaceholder": "例如：禁止拉丁字母",
+    "pattern": "正则表达式",
+    "patternPlaceholder": "[A-Za-z]",
+    "presets": "文字阻止预设",
+    "remove": "删除规则"
   },
   "phase": {
+    "censor_detection": "审查检测",
+    "decensor": "去审查",
     "detection": "检测",
     "inpainting": "修补",
     "ocr": "OCR",
     "translation": "翻译"
   },
   "phaseDescription": {
+    "censor_detection": "检测被遮挡区域并保存遮罩。",
+    "decensor": "使用所选模型重建被遮挡的区域。",
     "detection": "定位页面上的文本。",
     "inpainting": "重建移除文字后的画面。",
     "ocr": "读取每个区域中的文本。",
@@ -321,6 +658,7 @@
     "atlas-cloud": "由 Atlas 托管的语言模型。",
     "caiyun": "Caiyun 翻译 API。",
     "claude": "Anthropic Claude 模型。",
+    "cursor": "Cursor Cloud Agent 模型。",
     "deepl": "DeepL 翻译 API。",
     "deepseek": "DeepSeek 语言模型。",
     "gemini": "Google Gemini 模型。",
@@ -335,14 +673,16 @@
   },
   "resources": {
     "cpu": "CPU",
+    "gpu": "GPU",
+    "gpuUtilization": "GPU 利用率",
     "processUtilization": "进程利用率",
     "ram": "RAM",
-    "summary": "内存 {{ram}}%，CPU {{cpu}}%",
+    "summary": "内存 {{ram}}，CPU {{cpu}}",
+    "summaryGpu": "内存 {{ram}}，CPU {{cpu}}，GPU {{gpu}}",
     "title": "系统资源",
-    "tooltip": "内存 {{ramUsed}} / {{ramTotal}} · CPU {{cpu}}%",
+    "unavailable": "不可用",
     "usedOfTotal": "已使用 {{used}}，共 {{total}}",
-    "vramUnavailable": "不可用",
-    "vramValue": "{{value}} 显存"
+    "vram": "显存"
   },
   "settings": {
     "appearance": {
@@ -372,6 +712,19 @@
       "temperature": "温度",
       "reasoning": "推理",
       "reasoningDescription": "翻译时使用模型推理。",
+      "reasoningLevel": "推理级别",
+      "reasoningLevelDescription": "推理开启时模型思考的深度。选择“默认”将沿用提供商自身的设置。",
+      "reasoningLevelUnsupported": "所选模型不提供此级别。请选择其他级别或“默认”。",
+      "reasoningLevels": {
+        "high": "高",
+        "low": "低",
+        "max": "最大",
+        "medium": "中",
+        "minimal": "最小",
+        "xhigh": "超高"
+      },
+      "reasoningOnOffOnly": "此模型没有推理级别，推理只能开启或关闭。",
+      "reasoningUnsupported": "此模型不支持推理。",
       "title": "生成",
       "topK": "前 K 项",
       "topP": "Top P",
@@ -380,14 +733,44 @@
     },
     "loading": "正在加载偏好设置…",
     "pipeline": {
+      "censorDetection": {
+        "description": "检测被遮挡区域并保存遮罩。",
+        "title": "审查检测"
+      },
       "description": "选择用于处理每个页面的模型和选项。",
       "modelLabel": "{{stage}}模型",
       "options": {
         "bubbleThreshold": "气泡阈值",
+        "guidanceScale": "引导强度",
+        "inferenceSteps": "推理步数",
+        "lineartStrength": "线稿强度",
+        "loraPath": "LoRA 文件（可选）",
+        "loraStrength": "LoRA 强度（0 = 关闭）",
         "negativePrompt": "负面提示词",
         "panelThreshold": "分镜阈值",
         "prompt": "提示词",
-        "textThreshold": "文本阈值"
+        "textThreshold": "文本阈值",
+        "endpoint": "ComfyUI 地址",
+        "checkpoint": "检查点",
+        "controlnet": "ControlNet",
+        "positivePrompt": "正向提示词",
+        "seed": "种子",
+        "denoise": "重绘强度",
+        "automaticCensorMask": "自动审查蒙版",
+        "detectMosaic": "检测马赛克",
+        "censorThreshold": "审查检测阈值",
+        "censorMaskGrow": "审查蒙版扩展",
+        "censorMaskBlur": "审查蒙版模糊",
+        "maskPadding": "蒙版边距",
+        "maskGrow": "蒙版扩展",
+        "maskBlur": "蒙版模糊",
+        "colorMatchStrength": "颜色匹配",
+        "timeoutSeconds": "超时（秒）"
+      },
+      "profiles": {
+        "flux2-klein-9b-uncensored": "搭载无审查 Q4_K_M 文本编码器的蒸馏版 9B Q8",
+        "diffusioncreampy-animagine-xl-4": "使用 Animagine XL 4.0 Opt 的本地 ComfyUI SDXL 动漫与漫画修复。",
+        "diffusioncreampy-illustrious-xl-2": "使用 Illustrious XL 2.0 的本地 ComfyUI SDXL 精细插画修复。"
       },
       "processing": "正在处理",
       "stages": {
@@ -395,9 +778,21 @@
           "description": "查找文本、气泡和分镜。",
           "title": "检测"
         },
-        "inpainting": {
-          "description": "重建已删除文本下方的图稿。",
-          "title": "修补"
+        "decensor": {
+          "description": "使用所选模型重建被遮挡的区域。",
+          "title": "去审查"
+        },
+        "artwork": {
+          "description": "重建气泡外文字和音效下方的图稿。",
+          "title": "图稿修补"
+        },
+        "manual": {
+          "description": "绘制蒙版，使用独立的提示词和参数通过 FLUX 修复区域。",
+          "title": "手动修补 (FLUX)"
+        },
+        "bubbles": {
+          "description": "快速清除气泡内的文字。",
+          "title": "气泡修补"
         },
         "ocr": {
           "description": "读取检测区域内的原文。",
@@ -429,6 +824,7 @@
       "providers": "提供商",
       "shortcuts": "快捷键",
       "translation": "译文",
+      "usage": "Token 用量",
       "typesetting": "排版"
     },
     "title": "设置",
@@ -444,6 +840,11 @@
       "quantization": "量化",
       "quantizationDescription": "较小的格式占用更少内存，但通常会牺牲一些质量。",
       "selectQuantization": "选择量化方式",
+      "sourceLanguageDescription": "选择源文本所使用的语言。",
+      "systemPrompt": "系统提示词",
+      "systemPromptDescription": "选择编辑器运行所用的配置。每个配置保留各自的提示词；Telegram 订单使用订单自己的配置。",
+      "validators": "自动验证器",
+      "validatorsDescription": "拒绝匹配的译文文本，并携带纠正反馈重新生成一次。",
       "targetLanguageDescription": "选择文本要翻译成的语言。",
       "title": "译文",
       "translationModel": "翻译模型",
@@ -499,38 +900,110 @@
     "brushSizePixels": "画笔大小：{{size}} 像素",
     "brushSizeShort": "{{size}} 像素",
     "color_picker": "取色器",
+    "decensor": "去审查",
     "decreaseBrushSize": "减小画笔大小",
     "draw": "绘画",
     "eraser": "橡皮擦",
     "increaseBrushSize": "增大画笔大小",
     "pan": "平移",
-    "remove": "移除",
+    "fast": "Fast",
+    "inpainting": "Inpainting (FLUX)",
+    "applyRepairSettings": "应用设置",
+    "repairSettingsHint": "绘制前请应用设置。已接收的蒙版保留原来的参数。",
     "select": "选择",
     "text": "文本"
   },
-  "updater": {
-    "available": {
-      "description": "Koharu <strong>{{version}}</strong> 已准备好安装",
-      "title": "有可用更新"
-    },
-    "close": "关闭",
-    "downloading": {
-      "subtitle": "Koharu {{version}}",
-      "title": "正在下载更新…"
-    },
-    "error": {
-      "description": "更新过程中出现问题",
-      "title": "更新失败"
-    },
-    "later": "稍后",
-    "noNotes": "未提供发行说明。",
-    "retry": "重试",
-    "update": "更新"
+  "usage": {
+    "title": "Token 用量",
+    "description": "按请求记录翻译和 AI 智能体的本地用量。",
+    "privacy": "日志不保存提示词、图片、回复、凭据或推理文本。",
+    "unknownNotice": "短横线表示提供商未报告该值。费用来自提供商，不是估算。推理和缓存是 Token 明细，不应再次加入总量。",
+    "provider": "提供商",
+    "model": "模型",
+    "from": "开始日期",
+    "to": "结束日期（含当天）",
+    "apply": "应用筛选",
+    "refresh": "刷新",
+    "requests": "请求数",
+    "input": "输入 Token",
+    "output": "输出 Token",
+    "total": "总 Token",
+    "cost": "报告费用",
+    "missingUsage": "未报告 Token 用量的请求：{{count}}",
+    "missingCost": "未报告费用的请求：{{count}}",
+    "coverage": "{{total}} 个请求中有 {{known}} 个报告了数据",
+    "empty": "没有符合筛选条件的请求。",
+    "failed": "无法读取本地用量日志。",
+    "time": "时间",
+    "operation": "操作",
+    "status": "结果",
+    "latency": "耗时",
+    "details": "请求详情",
+    "detailsFor": "请求 {{id}} 的详情",
+    "previous": "较新",
+    "next": "较早",
+    "page": "第 {{number}} 页",
+    "identity": "请求与上下文",
+    "tokens": "Token 明细",
+    "parameters": "生成参数",
+    "invalidDates": "开始日期不能晚于结束日期。",
+    "storage": "本地日志：{{path}}",
+    "fields": {
+      "provider": "提供商",
+      "requested_model": "请求模型",
+      "resolved_model": "返回模型",
+      "request_id": "提供商请求 ID",
+      "response_id": "提供商回复 ID",
+      "attempt": "尝试次数",
+      "http_status": "HTTP 状态",
+      "error_kind": "错误类别",
+      "project_id": "项目",
+      "page_id": "页面",
+      "job_id": "任务 / 运行",
+      "source_language": "源语言",
+      "target_language": "目标语言",
+      "segment_count": "文本段数",
+      "image_count": "图片数",
+      "context_count": "上下文条目数",
+      "reasoning": "启用推理",
+      "reasoning_effort": "推理级别",
+      "reasoning_tokens": "推理 Token",
+      "cache_read_tokens": "缓存输入 Token",
+      "cache_write_tokens": "缓存写入 Token",
+      "image_input_tokens": "图片输入 Token",
+      "image_output_tokens": "图片输出 Token",
+      "audio_input_tokens": "音频输入 Token",
+      "audio_output_tokens": "音频输出 Token",
+      "cost_source": "费用来源"
+    }
   },
   "window": {
     "close": "关闭",
     "maximize": "最大化",
     "minimize": "最小化",
     "restore": "还原"
+  },
+  "galleryImport": {
+    "cancel": "取消",
+    "close": "关闭",
+    "cookies": "exhentai Cookie",
+    "cookiesHint": "粘贴包含 ipb_member_id、ipb_pass_hash 和 igneous 的 cookie 请求头。它保存在系统钥匙串中，不会再次显示。",
+    "cookiesOptional": "（仅用于 exhentai）",
+    "description": "按给定顺序把多个图库下载到一个新项目中。支持 e-hentai、exhentai 和 nhentai 链接。",
+    "downloading": "正在下载页面…",
+    "error": "导入失败。请检查链接后重试。",
+    "galleries": "图库",
+    "import": "导入",
+    "importing": "正在导入…",
+    "importingPages": "正在创建项目…",
+    "inspecting": "正在读取图库信息…",
+    "name": "项目名称",
+    "nameOptional": "（可选）",
+    "pages": "页面",
+    "progress": "导入进度",
+    "success": "项目已创建",
+    "title": "导入图库",
+    "urls": "图库链接（每行一个，最多 20 个）",
+    "urlsPlaceholder": "https://e-hentai.org/g/123456/abcdef0123/\nhttps://nhentai.net/g/654321/"
   }
 }

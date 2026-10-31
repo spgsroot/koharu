@@ -5,14 +5,23 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ModelPicker } from '@/components/controls/ModelPicker'
+import { SystemPromptEditor } from '@/components/controls/SystemPromptEditor'
+import { TranslationValidationEditor } from '@/components/controls/TranslationValidationEditor'
 import { GenerationPreferences } from '@/components/preferences/GenerationPreferences'
 import {
   PreferencePage,
   PreferenceRow,
   PreferenceSection,
 } from '@/components/preferences/PreferenceFields'
-import { modelKey, modelSelection, orderedLanguageChoices, providerName } from '@/lib/translation'
+import {
+  modelKey,
+  orderedLanguageChoices,
+  providerName,
+  translationWithGeneration,
+  translationWithModel,
+} from '@/lib/translation'
 import type {
+  DefaultSystemPrompts,
   LanguageChoice,
   Model,
   ProviderPreference,
@@ -34,12 +43,14 @@ export function TranslationPreferences({
   modelChoices,
   providers,
   languages,
+  defaultPrompts,
   onChange,
 }: {
   value: TranslationSettings
   modelChoices: Model[]
   providers: ProviderPreference[]
   languages: LanguageChoice[]
+  defaultPrompts: DefaultSystemPrompts | null
   onChange: (value: TranslationSettings) => void
 }) {
   const { t } = useTranslation()
@@ -53,6 +64,8 @@ export function TranslationPreferences({
     quantizations: [],
     vision: value.model.vision ?? false,
     reasoning: value.model.reasoning ?? false,
+    reasoning_efforts: value.model.reasoning_efforts ?? [],
+    reasoning_always_on: value.model.reasoning_always_on ?? false,
   }
   const choices = selected ? modelChoices : [current, ...modelChoices]
   const quantizations = current.quantizations
@@ -92,10 +105,7 @@ export function TranslationPreferences({
                 providers={providers}
                 onBack={() => setModelOpen(false)}
                 onSelect={(model) => {
-                  onChange({
-                    ...value,
-                    model: modelSelection(model),
-                  })
+                  onChange(translationWithModel(value, model))
                   setModelOpen(false)
                 }}
               />
@@ -133,10 +143,40 @@ export function TranslationPreferences({
 
       <GenerationPreferences
         value={value.generation}
-        onChange={(generation) => onChange({ ...value, generation })}
+        model={current}
+        onChange={(generation) => onChange(translationWithGeneration(value, generation, current))}
       />
 
       <PreferenceSection title={t('settings.translation.output')}>
+        <PreferenceRow
+          title={t('model.sourceLanguage')}
+          description={t('settings.translation.sourceLanguageDescription')}
+        >
+          <Select
+            value={value.source_language}
+            items={Object.fromEntries(
+              languageChoices.map((language) => [language.tag, language.name]),
+            )}
+            onValueChange={(source_language) =>
+              source_language && onChange({ ...value, source_language })
+            }
+          >
+            <SelectTrigger
+              aria-label={t('model.sourceLanguage')}
+              className='h-8 w-full text-[11px]'
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {languageChoices.map((language) => (
+                <SelectItem key={language.tag} value={language.tag}>
+                  {language.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </PreferenceRow>
+
         <PreferenceRow
           title={t('model.targetLanguage')}
           description={t('settings.translation.targetLanguageDescription')}
@@ -178,6 +218,31 @@ export function TranslationPreferences({
             onChange={(event) =>
               onChange({ ...value, instructions: event.currentTarget.value || null })
             }
+          />
+        </PreferenceRow>
+
+        <PreferenceRow
+          title={t('settings.translation.systemPrompt')}
+          description={t('settings.translation.systemPromptDescription')}
+          align='start'
+        >
+          <SystemPromptEditor
+            profile={value.content_profile}
+            prompts={value.system_prompts}
+            defaults={defaultPrompts}
+            onChange={(content_profile, system_prompts) =>
+              onChange({ ...value, content_profile, system_prompts })
+            }
+          />
+        </PreferenceRow>
+        <PreferenceRow
+          title={t('settings.translation.validators')}
+          description={t('settings.translation.validatorsDescription')}
+          align='start'
+        >
+          <TranslationValidationEditor
+            value={value.validators}
+            onChange={(validators) => onChange({ ...value, validators })}
           />
         </PreferenceRow>
       </PreferenceSection>

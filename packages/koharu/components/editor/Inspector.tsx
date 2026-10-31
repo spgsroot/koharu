@@ -21,7 +21,7 @@ import {
   Trash2,
   Type,
 } from 'lucide-react'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { type MouseEvent, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ColorWell } from '@/components/controls/ColorWell'
@@ -35,8 +35,16 @@ import {
   isTextLayer,
   layerChildren,
 } from '@/lib/document'
-import { pageKey, projectKey, queryClient, refresh, useFonts, usePage } from '@/lib/queries'
-import { useKoharuStore } from '@/lib/store'
+import {
+  pageKey,
+  pagesKey,
+  projectKey,
+  queryClient,
+  refresh,
+  useFonts,
+  usePage,
+} from '@/lib/queries'
+import { receiveError, useKoharuStore } from '@/lib/store'
 import { previewCanvasOpacity } from '@koharu/bridge/canvas'
 import {
   commands,
@@ -499,6 +507,7 @@ function LayersInspector() {
     selected.length === 1 ? (selected[0] ?? null) : null,
   )
   const [movingLayer, setMovingLayer] = useState<EntityId | null>(null)
+  const anchor = useRef<EntityId | null>(null)
 
   useEffect(() => {
     setExpandedLayer(selected.length === 1 ? (selected[0] ?? null) : null)
@@ -547,13 +556,39 @@ function LayersInspector() {
       })
       .catch(() => undefined)
 
-  const selectLayer = (layer: EntityId) => {
-    if (selected.length === 1 && selected[0] === layer) {
-      setExpandedLayer((current) => (current === layer ? null : layer))
+  // Modifier semantics mirror the page rail: ctrl/meta toggles, shift selects a display range.
+  const selectLayer = (layer: EntityId, additive: boolean, range: boolean) => {
+    if (!additive && !range) {
+      anchor.current = layer
+      if (selected.length === 1 && selected[0] === layer) {
+        setExpandedLayer((current) => (current === layer ? null : layer))
+        return
+      }
+      selectLayers([layer])
+      setExpandedLayer(layer)
       return
     }
-    selectLayers([layer])
-    setExpandedLayer(layer)
+    const order = layers.map((row) => row.layer.id)
+    const anchorIndex = anchor.current ? order.indexOf(anchor.current) : -1
+    if (range && anchorIndex >= 0) {
+      const targetIndex = order.indexOf(layer)
+      const span = layers
+        .slice(Math.min(anchorIndex, targetIndex), Math.max(anchorIndex, targetIndex) + 1)
+        .filter((row) => !isLockedLayer(row.layer))
+        .map((row) => row.layer.id)
+      selectLayers(additive ? [...selected, ...span] : span)
+      return
+    }
+    anchor.current = layer
+    if (!additive) {
+      selectLayers([layer])
+      return
+    }
+    selectLayers(
+      selected.includes(layer)
+        ? selected.filter((selectedLayer) => selectedLayer !== layer)
+        : [...selected, layer],
+    )
   }
 
   return (
@@ -590,7 +625,9 @@ function LayersInspector() {
                 selected={selected.includes(layer.id)}
                 expanded={!locked && expandedLayer === layer.id}
                 locked={locked}
-                onSelect={() => selectLayer(layer.id)}
+                onSelect={(event) =>
+                  selectLayer(layer.id, event.ctrlKey || event.metaKey, event.shiftKey)
+                }
                 onToggle={() =>
                   void call(commands.setVisibility, [layer.id], !layer.visibility.visible, null)
                     .then(() => refresh(projectKey, pageKey))
@@ -632,7 +669,7 @@ function LayerRow({
   selected: boolean
   expanded: boolean
   locked: boolean
-  onSelect: () => void
+  onSelect: (event: MouseEvent<HTMLButtonElement>) => void
   onToggle: () => void
   onMove: (delta: number) => void
   canMoveUp: boolean
@@ -768,6 +805,18 @@ function LayerEditor({ layer, onDelete }: { layer: Layer; onDelete?: () => void 
       .then(() => refresh(projectKey, pageKey))
       .catch(() => undefined)
   }
+  const navigateHistory = (direction: 'undo' | 'redo') =>
+    commands[direction]()
+      .then(() => refresh(projectKey, pagesKey, pageKey))
+      .catch((error: unknown) =>
+        receiveError(
+          error instanceof Error
+            ? error.message
+            : typeof error === 'string'
+              ? error
+              : 'The history operation failed with an unknown error.',
+        ),
+      )
 
   return (
     <div className='grid min-w-0 gap-1.5 px-1.5 pt-0.5 pb-1.5'>
@@ -852,10 +901,11 @@ function LayerEditor({ layer, onDelete }: { layer: Layer; onDelete?: () => void 
               className='max-h-14 min-h-8 w-full max-w-full min-w-0 resize-y overflow-y-auto rounded-md bg-background px-1.5 py-1 text-[12px] leading-4 md:text-[12px]'
               value={layer.content.source?.text ?? ''}
               onCommit={(text) =>
-                void call(commands.setSourceText, layer.id, text)
-                  .then(() => refresh(projectKey, pageKey))
-                  .catch(() => undefined)
+                call(commands.setSourceText, layer.id, text).then(() =>
+                  refresh(projectKey, pageKey),
+                )
               }
+              onHistoryNavigate={navigateHistory}
             />
           </InspectorField>
           <InspectorField label={t('inspector.translation')}>
@@ -866,10 +916,11 @@ function LayerEditor({ layer, onDelete }: { layer: Layer; onDelete?: () => void 
               className='max-h-16 min-h-9 w-full max-w-full min-w-0 resize-y overflow-y-auto rounded-md border-primary/25 bg-background px-1.5 py-1 text-[12px] leading-4 md:text-[12px]'
               value={layer.content.translation?.text ?? ''}
               onCommit={(text) =>
-                void call(commands.setTranslation, layer.id, text.trim() ? text : null)
-                  .then(() => refresh(projectKey, pageKey))
-                  .catch(() => undefined)
+                call(commands.setTranslation, layer.id, text.trim() ? text : null).then(() =>
+                  refresh(projectKey, pageKey),
+                )
               }
+              onHistoryNavigate={navigateHistory}
             />
           </InspectorField>
         </>

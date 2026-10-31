@@ -7,18 +7,41 @@ import {
   PreferenceRow,
   PreferenceSection,
 } from '@/components/preferences/PreferenceFields'
-import type { GenerationConfig } from '@koharu/bridge/protocol'
+import type { GenerationConfig, Model, ReasoningEffort } from '@koharu/bridge/protocol'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@koharu/ui/components/select'
 import { Switch } from '@koharu/ui/components/switch'
+
+/** Stands for "no level chosen": the provider keeps its own default depth. */
+const providerDefault = 'default'
 
 export function GenerationPreferences({
   value,
+  model,
   onChange,
 }: {
   value: GenerationConfig
+  /** Reasoning capabilities of the model these settings apply to. */
+  model: Pick<Model, 'reasoning' | 'reasoning_efforts'>
   onChange: (value: GenerationConfig) => void
 }) {
   const { t } = useTranslation()
   const update = (changes: Partial<GenerationConfig>) => onChange({ ...value, ...changes })
+  const levels = model.reasoning_efforts
+  const level = value.reasoning_effort ?? null
+  const levelUnsupported = level !== null && !levels.includes(level)
+  const levelLabel = (effort: ReasoningEffort) => t(`settings.generation.reasoningLevels.${effort}`)
+  const levelOptions = levelUnsupported ? [...levels, level] : levels
+  const reasoningNote = !model.reasoning
+    ? t('settings.generation.reasoningUnsupported')
+    : levels.length === 0
+      ? t('settings.generation.reasoningOnOffOnly')
+      : null
   return (
     <PreferenceSection
       title={t('settings.generation.title')}
@@ -100,7 +123,52 @@ export function GenerationPreferences({
             onCheckedChange={(reasoning) => update({ reasoning })}
           />
         </div>
+        {reasoningNote && (
+          <p className='mt-1 text-right text-[10px] leading-4 text-muted-foreground'>
+            {reasoningNote}
+          </p>
+        )}
       </PreferenceRow>
+      {model.reasoning && (levels.length > 0 || level !== null) && (
+        <PreferenceRow
+          title={t('settings.generation.reasoningLevel')}
+          description={t('settings.generation.reasoningLevelDescription')}
+        >
+          <Select
+            value={level ?? providerDefault}
+            items={{
+              [providerDefault]: t('model.default'),
+              ...Object.fromEntries(levelOptions.map((effort) => [effort, levelLabel(effort)])),
+            }}
+            disabled={!(value.reasoning ?? false)}
+            onValueChange={(next) =>
+              update({
+                reasoning_effort: next === providerDefault ? null : (next as ReasoningEffort),
+              })
+            }
+          >
+            <SelectTrigger
+              aria-label={t('settings.generation.reasoningLevel')}
+              className='h-8 w-full text-[11px]'
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={providerDefault}>{t('model.default')}</SelectItem>
+              {levelOptions.map((effort) => (
+                <SelectItem key={effort} value={effort}>
+                  {levelLabel(effort)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {levelUnsupported && (
+            <p className='mt-1 text-[10px] leading-4 text-destructive'>
+              {t('settings.generation.reasoningLevelUnsupported')}
+            </p>
+          )}
+        </PreferenceRow>
+      )}
       <PreferenceRow
         title={t('settings.generation.vision')}
         description={t('settings.generation.visionDescription')}

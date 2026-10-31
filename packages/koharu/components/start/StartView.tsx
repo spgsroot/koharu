@@ -1,9 +1,10 @@
 'use client'
 
-import { Folder, FolderPlus, Plus, Settings, Trash2 } from 'lucide-react'
+import { Folder, FolderPlus, Images, Plus, Settings, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { GalleryImportDialog } from '@/components/start/GalleryImportDialog'
 import { call } from '@/lib/backend'
 import { pageKey, pagesKey, projectKey, refresh } from '@/lib/queries'
 import { useKoharuStore } from '@/lib/store'
@@ -31,6 +32,7 @@ export function StartView() {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState<string | null>('list')
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null)
+  const [galleryImportOpen, setGalleryImportOpen] = useState(false)
 
   const reload = useCallback(async () => {
     setBusy('list')
@@ -161,6 +163,20 @@ export function StartView() {
                   </Button>
                 </form>
 
+                <div className='mt-5 border-t border-border/70 pt-5'>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    className='h-9 w-full justify-center gap-1.5 text-[11px]'
+                    disabled={busy !== null}
+                    onClick={() => setGalleryImportOpen(true)}
+                  >
+                    <Images className='size-3.5' />
+                    {t('galleryImport.title')}
+                  </Button>
+                </div>
+
                 <p className='mt-auto pt-8 text-[10px] leading-4 text-muted-foreground'>
                   {t('start.storageHint')}
                 </p>
@@ -208,7 +224,7 @@ export function StartView() {
                       {projects.map((project) => (
                         <li
                           key={project.name}
-                          className='group flex items-center rounded-lg hover:bg-foreground/[0.045]'
+                          className='group flex min-w-0 items-center rounded-lg hover:bg-foreground/[0.045]'
                         >
                           <button
                             type='button'
@@ -249,6 +265,8 @@ export function StartView() {
           </section>
         </ScrollArea>
       </main>
+
+      <GalleryImportDialog open={galleryImportOpen} onOpenChange={setGalleryImportOpen} />
 
       <AlertDialogContent>
         <AlertDialogHeader>

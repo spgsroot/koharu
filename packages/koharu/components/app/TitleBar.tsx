@@ -1,15 +1,26 @@
 'use client'
 
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { FilePlus2, FolderOpen, LoaderCircle, Settings } from 'lucide-react'
+import {
+  ClipboardList,
+  FilePlus2,
+  FolderOpen,
+  Images,
+  LoaderCircle,
+  Settings,
+  SquarePen,
+} from 'lucide-react'
 import Image from 'next/image'
 import { useState, type ComponentProps } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AboutDialog } from '@/components/app/AboutDialog'
 import { useMacOS, WindowControls } from '@/components/app/WindowChrome'
+import { GalleryImportDialog } from '@/components/start/GalleryImportDialog'
 import { call } from '@/lib/backend'
+import { copySelection, pasteLayers, selectionText } from '@/lib/clipboard'
 import { selectableLayer } from '@/lib/geometry'
+import { useCurrentOrder, useOrdersUiStore } from '@/lib/orders'
 import {
   pageKey,
   pagesKey,
@@ -20,7 +31,7 @@ import {
   usePages,
   useProject,
 } from '@/lib/queries'
-import { useKoharuStore } from '@/lib/store'
+import { receiveError, useKoharuStore, type AppView } from '@/lib/store'
 import { commands, type Operation, type Scope, type Stage } from '@koharu/bridge/protocol'
 import {
   Menubar,
@@ -39,6 +50,7 @@ import { cn } from '@koharu/ui/lib/utils'
 export function TitleBar() {
   const { t } = useTranslation()
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [galleryImportOpen, setGalleryImportOpen] = useState(false)
   const macOS = useMacOS()
   const project = useProject().data
   const pagesQuery = usePages(Boolean(project))
@@ -48,7 +60,12 @@ export function TitleBar() {
   const selectedPages = useKoharuStore((state) => state.selectedPages)
   const selectedLayers = useKoharuStore((state) => state.selectedLayers)
   const selectLayers = useKoharuStore((state) => state.selectLayers)
-  const setSettingsOpen = useKoharuStore((state) => state.setSettingsOpen)
+  const view = useKoharuStore((state) => state.view)
+  const setView = useKoharuStore((state) => state.setView)
+  const ordersEnabled = useKoharuStore((state) => state.preferences?.ui.orders ?? false)
+  const layerClipboard = useKoharuStore((state) => state.layerClipboard)
+  const currentOrder = useCurrentOrder()
+  const setSelectedOrder = useOrdersUiStore((state) => state.setSelectedOrder)
   const requestCanvasFit = useKoharuStore((state) => state.requestCanvasFit)
   const { importPages, importing } = useImportPages()
 
@@ -82,6 +99,11 @@ export function TitleBar() {
           <MenubarMenu>
             <MenubarTrigger>{t('menu.file')}</MenubarTrigger>
             <MenubarContent>
+              <MenubarItem onClick={() => setGalleryImportOpen(true)}>
+                <Images />
+                {t('galleryImport.title')}
+              </MenubarItem>
+              <MenubarSeparator />
               <MenubarSub>
                 <MenubarSubTrigger
                   disabled={!project || importing}
@@ -123,7 +145,7 @@ export function TitleBar() {
                 {t('menu.closeProject')}
               </MenubarItem>
               <MenubarSeparator />
-              <MenubarItem onClick={() => setSettingsOpen(true)}>
+              <MenubarItem onClick={() => setView('settings')}>
                 <Settings />
                 {t('menu.settings')}
               </MenubarItem>
@@ -136,24 +158,56 @@ export function TitleBar() {
               <MenubarItem
                 disabled={!project?.can_undo}
                 onClick={() =>
-                  void call(commands.undo)
+                  void commands
+                    .undo()
                     .then(() => refresh(projectKey, pagesKey, pageKey))
-                    .catch(() => undefined)
+                    .catch((error: unknown) => receiveError(commandErrorMessage(error)))
                 }
               >
                 {t('menu.undo')}
-                <MenubarShortcut>Ctrl+Z</MenubarShortcut>
+                <MenubarShortcut>{macOS ? '⌘Z' : 'Ctrl+Z'}</MenubarShortcut>
               </MenubarItem>
               <MenubarItem
                 disabled={!project?.can_redo}
                 onClick={() =>
-                  void call(commands.redo)
+                  void commands
+                    .redo()
                     .then(() => refresh(projectKey, pagesKey, pageKey))
-                    .catch(() => undefined)
+                    .catch((error: unknown) => receiveError(commandErrorMessage(error)))
                 }
               >
                 {t('menu.redo')}
-                <MenubarShortcut>Ctrl+Shift+Z</MenubarShortcut>
+                <MenubarShortcut>{macOS ? '⇧⌘Z' : 'Ctrl+Shift+Z'}</MenubarShortcut>
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem
+                disabled={selectedLayers.length === 0}
+                onClick={() => {
+                  const text = selectionText(page, selectedLayers)
+                  void navigator.clipboard?.writeText(text).catch(() => undefined)
+                  void copySelection(true, text).catch(() => undefined)
+                }}
+              >
+                {t('menu.cut')}
+                <MenubarShortcut>{macOS ? '⌘X' : 'Ctrl+X'}</MenubarShortcut>
+              </MenubarItem>
+              <MenubarItem
+                disabled={selectedLayers.length === 0}
+                onClick={() => {
+                  const text = selectionText(page, selectedLayers)
+                  void navigator.clipboard?.writeText(text).catch(() => undefined)
+                  void copySelection(false, text).catch(() => undefined)
+                }}
+              >
+                {t('menu.copy')}
+                <MenubarShortcut>{macOS ? '⌘C' : 'Ctrl+C'}</MenubarShortcut>
+              </MenubarItem>
+              <MenubarItem
+                disabled={!page || !layerClipboard}
+                onClick={() => page && void pasteLayers(page.id).catch(() => undefined)}
+              >
+                {t('menu.paste')}
+                <MenubarShortcut>{macOS ? '⌘V' : 'Ctrl+V'}</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem
@@ -207,7 +261,16 @@ export function TitleBar() {
                 {t('menu.processLayers')}
               </MenubarItem>
               <MenubarSeparator />
-              {(['detection', 'ocr', 'translation', 'inpainting'] as Stage[]).map((stage) => (
+              {(
+                [
+                  'detection',
+                  'ocr',
+                  'translation',
+                  'censor_detection',
+                  'inpainting',
+                  'decensor',
+                ] as Stage[]
+              ).map((stage) => (
                 <MenubarItem
                   key={stage}
                   disabled={!project || pages.length === 0}
@@ -254,25 +317,72 @@ export function TitleBar() {
         <div className='min-w-0 flex-1' />
         <div className='pointer-events-none absolute inset-y-0 left-1/2 flex max-w-[40vw] min-w-16 -translate-x-1/2 items-center justify-center px-3 text-[11px] text-muted-foreground select-none'>
           {project ? (
-            <span className='truncate'>
-              <span className='font-medium text-foreground'>{project.name}</span>
-              {page && (
-                <>
-                  <span className='mx-2'>/</span>
-                  <span>{page.label}</span>
-                </>
+            <span className='flex min-w-0 items-center truncate'>
+              {ordersEnabled && view === 'start' && currentOrder && (
+                <button
+                  type='button'
+                  onClick={() => {
+                    setSelectedOrder(currentOrder.id)
+                    setView('orders')
+                  }}
+                  className='pointer-events-auto mr-2 shrink-0 border-b border-dashed border-muted-foreground/60 text-sm text-muted-foreground transition-colors hover:text-foreground'
+                >
+                  {t('orders.breadcrumb.order', { number: currentOrder.number })}
+                </button>
               )}
+              <span className='truncate'>
+                <span className='font-medium text-foreground'>{project.name}</span>
+                {page && (
+                  <>
+                    <span className='mx-2'>/</span>
+                    <span>{page.label}</span>
+                  </>
+                )}
+              </span>
             </span>
           ) : (
             <span>Koharu</span>
           )}
         </div>
 
+        {ordersEnabled && (
+          <div className='relative z-10 mr-1 flex h-6 shrink-0 items-center rounded-lg bg-[var(--surface-well)] p-0.5'>
+            {WORKSPACE_VIEWS.map(([target, Icon, labelKey]) => (
+              <button
+                key={target}
+                type='button'
+                aria-pressed={view === target}
+                onClick={() => setView(target)}
+                className={cn(
+                  'flex h-5 items-center gap-1 rounded-md px-2 text-[11px] transition-colors',
+                  view === target
+                    ? 'bg-[var(--surface-panel)] text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon className='size-3' aria-hidden='true' />
+                {t(labelKey)}
+              </button>
+            ))}
+          </div>
+        )}
+
         {!macOS && <WindowControls />}
       </header>
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      <GalleryImportDialog open={galleryImportOpen} onOpenChange={setGalleryImportOpen} />
     </>
   )
+}
+
+const WORKSPACE_VIEWS = [
+  ['orders', ClipboardList, 'orders.workspace.orders'],
+  ['start', SquarePen, 'orders.workspace.editor'],
+] as const satisfies readonly [AppView, typeof ClipboardList, string][]
+
+function commandErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return typeof error === 'string' ? error : 'The operation failed with an unknown error.'
 }
 
 function exportSelection(selected: string[], active?: string): string[] {

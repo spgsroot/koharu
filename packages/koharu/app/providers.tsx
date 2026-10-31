@@ -6,10 +6,10 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { I18nextProvider } from 'react-i18next'
 
 import { StartupView } from '@/components/app/StartupView'
-import { Updater } from '@/components/app/Updater'
 import ClientOnly from '@/components/ClientOnly'
 import { refreshTranslationModels } from '@/lib/backend'
 import i18n from '@/lib/i18n'
+import { isActiveJob } from '@/lib/jobs'
 import { pageKey, pagesKey, projectKey, queryClient, refresh } from '@/lib/queries'
 import {
   receiveCanvas,
@@ -51,7 +51,8 @@ export function Providers({ children }: { children: ReactNode }) {
           channel<CanvasState>(receiveCanvas),
           channel<Job>((job) => {
             const previous = completed.get(job.id) ?? 0
-            completed.set(job.id, job.completed)
+            if (isActiveJob(job)) completed.set(job.id, job.completed)
+            else completed.delete(job.id)
             receiveJob(job)
             if (job.completed > previous || job.state !== 'running') {
               void refresh(projectKey, pagesKey, pageKey).catch(() => undefined)
@@ -62,10 +63,11 @@ export function Providers({ children }: { children: ReactNode }) {
           channel<ProjectInfo | null>((project) => {
             const previous = queryClient.getQueryData<ProjectInfo | null>(projectKey)
             queryClient.setQueryData(projectKey, project)
-            if (previous?.name !== project?.name) {
+            if (previous?.session !== project?.session) {
               const store = useKoharuStore.getState()
               store.selectPages(project?.active_page ? [project.active_page] : [])
               store.selectLayers([])
+              store.clearPendingMasks()
             }
             if (project) {
               void refresh(pagesKey, pageKey).catch(() => undefined)
@@ -79,6 +81,32 @@ export function Providers({ children }: { children: ReactNode }) {
           if (lifecycle.active) receiveStartupState(state)
         })
         .catch(() => undefined)
+
+      // A dropped channel event would otherwise leave a job "running" and its
+      // pending mask on the canvas forever; poll only while work is active.
+      window.setInterval(() => {
+        if (!lifecycle.active) return
+        const active = Object.values(useKoharuStore.getState().jobs).filter(isActiveJob)
+        if (active.length === 0) return
+        void commands
+          .getJobs(active.map((job) => job.id))
+          .then((known) => {
+            const current = new Map(known.map((job) => [job.id, job]))
+            let ended = false
+            for (const job of active) {
+              // Unknown jobs belonged to an earlier project session.
+              const next = current.get(job.id) ?? { ...job, state: 'stopped' as const }
+              if (next.state === job.state && next.completed === job.completed) continue
+              if (!isActiveJob(next)) {
+                completed.delete(job.id)
+                ended = true
+              }
+              receiveJob(next)
+            }
+            if (ended) void refresh(projectKey, pagesKey, pageKey).catch(() => undefined)
+          })
+          .catch(() => undefined)
+      }, 3000)
     }
 
     return () => {
@@ -121,14 +149,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
 function StartupBoundary({ children }: { children: ReactNode }) {
   const initialized = useKoharuStore((state) => state.initialized)
-  return initialized ? (
-    <>
-      {children}
-      <Updater />
-    </>
-  ) : (
-    <StartupView />
-  )
+  return initialized ? children : <StartupView />
 }
 
 export default Providers

@@ -7,11 +7,11 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { TitleBar } from '@/components/app/TitleBar'
 import { WindowControls } from '@/components/app/WindowChrome'
+import { CommitTextarea } from '@/components/controls/CommitTextarea'
 import { ActivityCenter } from '@/components/editor/ActivityCenter'
 import { CanvasCommandBar } from '@/components/editor/CanvasCommandBar'
 import { Inspector } from '@/components/editor/Inspector'
 import { PageRail } from '@/components/editor/PageRail'
-import { ResourceMonitor } from '@/components/editor/ResourceMonitor'
 import { StatusBar } from '@/components/editor/StatusBar'
 import { ToolBar } from '@/components/editor/ToolBar'
 import { ProviderPreferences } from '@/components/preferences/ProviderPreferences'
@@ -29,6 +29,7 @@ import * as canvasRuntime from '@koharu/bridge/canvas'
 import {
   commands,
   type Layer,
+  type Model,
   type PageSummary,
   type Preferences,
   type ProjectInfo,
@@ -88,6 +89,42 @@ const textLayer: Layer = {
   automatic_region: null,
 }
 
+const secondLayer: Layer = {
+  ...textLayer,
+  id: 'second',
+  content: {
+    ...textLayer.content,
+    id: 'second-content',
+    translation: { text: 'Second', language: null },
+  },
+}
+
+const thirdLayer: Layer = {
+  ...textLayer,
+  id: 'third',
+  content: {
+    ...textLayer.content,
+    id: 'third-content',
+    translation: { text: 'Third', language: null },
+  },
+}
+
+const artworkLayer: Layer = {
+  type: 'artwork',
+  id: 'artwork',
+  parent: 'page',
+  geometry: {
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ],
+  },
+  visibility: { visible: true, opacity: 1 },
+  image: 'source',
+}
+
 const preferences: Preferences = {
   pipeline: {
     detection: { model: 'koharu-layout-rfdetr-seg-2xl' },
@@ -101,10 +138,21 @@ const preferences: Preferences = {
         reasoning: true,
       },
       generation: { vision: true, reasoning: false },
+      source_language: 'ja-JP',
       target_language: 'en-US',
+      content_profile: 'manga',
+      system_prompts: { hentai: null, manga: null, comic: null },
       instructions: null,
+      validators: [],
     },
-    inpainting: { model: 'lama' },
+    inpainting: {
+      bubbles: 'lama',
+      artwork: { model: 'flux2-klein-9b-uncensored' },
+      manual: {},
+      manual_presets: [],
+    },
+    decensor: { model: 'flux2-klein-9b-uncensored' },
+    censor_detection: {},
     processor: {},
   },
   providers: {
@@ -141,6 +189,15 @@ const preferences: Preferences = {
     { tag: 'en-US', name: 'English' },
     { tag: 'ja-JP', name: 'Japanese' },
   ],
+  default_system_prompts: {
+    hentai: 'Built-in hentai prompt',
+    manga: 'Built-in manga prompt',
+    comic: 'Built-in comic prompt',
+  },
+  ui: { orders: true },
+  default_manual_inpainting_presets: [
+    { name: 'Text cleanup', settings: { prompt: 'Remove the lettering.', seed: 7 } },
+  ],
 }
 
 function installProject() {
@@ -148,10 +205,12 @@ function installProject() {
     id: 'page',
     label: 'Page 1',
     size: { width: 1000, height: 1500 },
+    censor_mask_asset: null,
     layers: [textLayer],
     regions: [],
   }
   queryClient.setQueryData(projectKey, {
+    session: 'book-session',
     name: 'Book',
     revision: 1,
     active_page: 'page',
@@ -178,6 +237,8 @@ function installProject() {
         quantizations: [],
         vision: true,
         reasoning: true,
+        reasoning_efforts: [],
+        reasoning_always_on: false,
       },
     ],
     selectedPages: ['page'],
@@ -333,11 +394,19 @@ describe('greenfield editor', () => {
   it('keeps rapid page switches on the latest native selection', async () => {
     installProject()
     const pages = [
-      { id: 'page', label: 'Page 1', size: { width: 1000, height: 1500 }, layers: [], regions: [] },
+      {
+        id: 'page',
+        label: 'Page 1',
+        size: { width: 1000, height: 1500 },
+        censor_mask_asset: null,
+        layers: [],
+        regions: [],
+      },
       {
         id: 'page-2',
         label: 'Page 2',
         size: { width: 1000, height: 1500 },
+        censor_mask_asset: null,
         layers: [],
         regions: [],
       },
@@ -345,6 +414,7 @@ describe('greenfield editor', () => {
         id: 'page-3',
         label: 'Page 3',
         size: { width: 1000, height: 1500 },
+        censor_mask_asset: null,
         layers: [],
         regions: [],
       },
@@ -381,11 +451,13 @@ describe('greenfield editor', () => {
     await act(async () => {
       pending.get('page-3')!({
         project: {
+          session: 'book-session',
           name: 'Book',
           revision: 1,
           active_page: 'page-3',
           can_undo: true,
           can_redo: false,
+          history: { entries: [], snapshots: [], cursor: 0 },
         },
         page: pages[2]!,
       })
@@ -394,11 +466,13 @@ describe('greenfield editor', () => {
     await act(async () => {
       pending.get('page-2')!({
         project: {
+          session: 'book-session',
           name: 'Book',
           revision: 1,
           active_page: 'page-2',
           can_undo: true,
           can_redo: false,
+          history: { entries: [], snapshots: [], cursor: 0 },
         },
         page: pages[1]!,
       })
@@ -448,6 +522,7 @@ describe('greenfield editor', () => {
       id: 'page-2',
       label: 'Page 2',
       size: { width: 1000, height: 1500 },
+      censor_mask_asset: null,
       layers: [],
       regions: [],
     }
@@ -481,6 +556,7 @@ describe('greenfield editor', () => {
       id: 'page-2',
       label: 'Page 2',
       size: { width: 1000, height: 1500 },
+      censor_mask_asset: null,
       layers: [],
       regions: [],
     }
@@ -714,6 +790,35 @@ describe('greenfield editor', () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith('element', 'corrected OCR'))
   })
 
+  it('commits a pending text draft before navigating history', async () => {
+    let finishCommit!: () => void
+    const committed = new Promise<void>((resolve) => {
+      finishCommit = resolve
+    })
+    const steps: string[] = []
+    render(
+      <CommitTextarea
+        aria-label='Source text'
+        value='before'
+        onCommit={(value) => {
+          steps.push(`commit:${value}`)
+          return committed
+        }}
+        onHistoryNavigate={(direction) => {
+          steps.push(direction)
+        }}
+      />,
+    )
+    const source = screen.getByRole('textbox', { name: 'Source text' })
+    fireEvent.change(source, { target: { value: 'after' } })
+
+    fireEvent.keyDown(source, { key: 'z', ctrlKey: true })
+
+    expect(steps).toEqual(['commit:after'])
+    finishCommit()
+    await waitFor(() => expect(steps).toEqual(['commit:after', 'undo']))
+  })
+
   it('shows actual layers with only the useful text-role distinction', () => {
     installProject()
     queryClient.setQueryData(pageKey, (page: { layers: Layer[] }) => ({
@@ -755,6 +860,77 @@ describe('greenfield editor', () => {
     expect(screen.queryByText('Onomatopoeia')).not.toBeInTheDocument()
   })
 
+  function installLayerSelectionFixture() {
+    installProject()
+    queryClient.setQueryData(pageKey, (page: { layers: Layer[] }) => ({
+      ...page,
+      layers: [...page.layers, secondLayer, artworkLayer, thirdLayer],
+    }))
+  }
+
+  it('toggles layers in the selection with ctrl-click', () => {
+    installLayerSelectionFixture()
+    render(<Inspector />)
+
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['element'])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Second' }), { ctrlKey: true })
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['element', 'second'])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Hello' }), { ctrlKey: true })
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['second'])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Second' }), { ctrlKey: true })
+    expect(useKoharuStore.getState().selectedLayers).toEqual([])
+  })
+
+  it('toggles layers in the selection with meta-click', () => {
+    installLayerSelectionFixture()
+    render(<Inspector />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Second' }), { metaKey: true })
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['element', 'second'])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Second' }), { metaKey: true })
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['element'])
+  })
+
+  it('selects a display range with shift-click, skipping locked layers', () => {
+    installLayerSelectionFixture()
+    render(<Inspector />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Third' }))
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['third'])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Hello' }), { shiftKey: true })
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['third', 'second', 'element'])
+  })
+
+  it('unions a shift range with the existing selection when ctrl is held', () => {
+    installLayerSelectionFixture()
+    render(<Inspector />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Second' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Third' }), {
+      ctrlKey: true,
+      shiftKey: true,
+    })
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['second', 'third'])
+  })
+
+  it('falls back to single selection when shift-clicking without an anchor', () => {
+    installLayerSelectionFixture()
+    render(<Inspector />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Third' }), { shiftKey: true })
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['third'])
+  })
+
+  it('collapses a multi-selection back to a single layer on plain click', () => {
+    installLayerSelectionFixture()
+    render(<Inspector />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Second' }), { ctrlKey: true })
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['element', 'second'])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Hello' }))
+    expect(useKoharuStore.getState().selectedLayers).toEqual(['element'])
+  })
+
   it('resets a custom text frame to its automatic region', async () => {
     installProject()
     queryClient.setQueryData(pageKey, (page: { layers: Layer[] }) => ({
@@ -791,21 +967,21 @@ describe('greenfield editor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Processing settings' }))
     fireEvent.click(screen.getByRole('button', { name: /Scope Page/ }))
     fireEvent.click(screen.getByRole('button', { name: /Entire project/ }))
-    fireEvent.click(screen.getByRole('button', { name: /Stages 4 stages/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Stages 6 stages/ }))
     fireEvent.click(screen.getByRole('button', { name: /Translation/ }))
     fireEvent.click(screen.getByRole('button', { name: /Inpainting/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Run processing' }))
     await waitFor(() =>
       expect(run).toHaveBeenLastCalledWith(
         { scope: 'project' },
-        { operation: 'stages', stages: ['detection', 'ocr'] },
+        { operation: 'stages', stages: ['detection', 'ocr', 'censor_detection', 'decensor'] },
       ),
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Processing settings' }))
     fireEvent.click(screen.getByRole('button', { name: /Scope Project/ }))
     fireEvent.click(screen.getByRole('button', { name: /Selected pages/ }))
-    fireEvent.click(screen.getByRole('button', { name: /Stages 2 stages/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Stages 4 stages/ }))
     fireEvent.click(screen.getByRole('button', { name: /Translation/ }))
     fireEvent.click(screen.getByRole('button', { name: /Inpainting/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Run processing' }))
@@ -838,7 +1014,7 @@ describe('greenfield editor', () => {
     await waitFor(() => expect(commands.getTranslationModels).toHaveBeenCalled())
     expect(screen.getByRole('button', { name: /Model Gemma 4 E2B Instruct/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Scope Page/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Stages 4 stages/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Stages 6 stages/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Output English/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
     expect(useKoharuStore.getState().settingsOpen).toBe(true)
@@ -853,8 +1029,21 @@ describe('greenfield editor', () => {
         ...preferences.pipeline,
         translation: {
           ...preferences.pipeline.translation,
+          source_language: 'en-US',
           target_language: 'ja-JP',
+          content_profile: 'hentai',
+          system_prompts: {
+            hentai: 'Translate adult dialogue faithfully.',
+            manga: null,
+            comic: null,
+          },
           instructions: 'Keep character names unchanged.',
+          validators: [
+            { name: 'Latin-script letters', pattern: '[A-Za-z]' },
+            { name: 'Japanese kana', pattern: '[\\p{Hiragana}\\p{Katakana}]' },
+            { name: 'Chinese Han characters', pattern: '[\\p{Han}]' },
+            { name: 'Korean characters', pattern: '[\\p{Hangul}]' },
+          ],
         },
       },
     }
@@ -869,13 +1058,31 @@ describe('greenfield editor', () => {
     await waitFor(() => expect(commands.getTranslationModels).toHaveBeenCalled())
     await user.click(screen.getByRole('button', { name: /Output English/ }))
     const language = screen.getByRole('combobox', { name: 'Target language' })
+    const sourceLanguage = screen.getByRole('combobox', { name: 'Source language' })
     expect(language).toHaveTextContent('English')
+    expect(sourceLanguage).toHaveTextContent('Japanese')
     expect(language).not.toHaveTextContent('en-US')
+    await user.click(sourceLanguage)
+    await user.click(await screen.findByRole('option', { name: 'English' }))
     await user.click(language)
     await user.click(await screen.findByRole('option', { name: 'Japanese' }))
     const instructions = screen.getByRole('textbox', { name: 'Translation instructions' })
     expect(instructions).toHaveClass('max-h-20', 'overflow-y-auto')
     await user.type(instructions, 'Keep character names unchanged.')
+    const systemPrompt = screen.getByRole('textbox', { name: 'System prompt' })
+    expect(systemPrompt).toHaveAttribute('placeholder', 'Built-in manga prompt')
+    await user.click(screen.getByRole('combobox', { name: 'Content profile' }))
+    await user.click(await screen.findByRole('option', { name: 'Hentai' }))
+    expect(systemPrompt).toHaveAttribute('placeholder', 'Built-in hentai prompt')
+    await user.type(systemPrompt, 'Translate adult dialogue faithfully.')
+    const latinPreset = screen.getByRole('button', { name: 'Latin letters' })
+    const japanesePreset = screen.getByRole('button', { name: 'Japanese kana' })
+    const chinesePreset = screen.getByRole('button', { name: 'Chinese Han characters' })
+    const koreanPreset = screen.getByRole('button', { name: 'Korean characters' })
+    await user.click(latinPreset)
+    await user.click(japanesePreset)
+    await user.click(chinesePreset)
+    await user.click(koreanPreset)
     expect(screen.queryByRole('button', { name: 'Apply output' })).not.toBeInTheDocument()
 
     await waitFor(() =>
@@ -889,16 +1096,15 @@ describe('greenfield editor', () => {
       screen.queryByLabelText(/Saving output settings|outputPicker\.saving/),
     ).not.toBeInTheDocument()
     expect(language).not.toBeDisabled()
-    expect(instructions).not.toBeDisabled()
-    expect(instructions).toHaveFocus()
+    expect(koreanPreset).toHaveFocus()
     await act(async () => finishSave(nextPreferences))
     await waitFor(() =>
       expect(useKoharuStore.getState().preferences?.pipeline.translation).toEqual(
         nextPreferences.pipeline.translation,
       ),
     )
-    expect(instructions).toBeInTheDocument()
-    expect(instructions).toHaveFocus()
+    expect(koreanPreset).toBeInTheDocument()
+    expect(koreanPreset).toHaveFocus()
   })
 
   it('preserves the runtime shortcuts while visiting settings', async () => {
@@ -921,7 +1127,7 @@ describe('greenfield editor', () => {
     await user.click(screen.getByRole('button', { name: 'Processing settings' }))
     await user.click(screen.getByRole('button', { name: /Scope Page/ }))
     await user.click(screen.getByRole('button', { name: /Entire project/ }))
-    await user.click(screen.getByRole('button', { name: /Stages 4 stages/ }))
+    await user.click(screen.getByRole('button', { name: /Stages 6 stages/ }))
     await user.click(screen.getByRole('button', { name: /Translation/ }))
     await user.click(screen.getByRole('button', { name: /Inpainting/ }))
     await user.click(screen.getByRole('button', { name: 'Back' }))
@@ -935,7 +1141,7 @@ describe('greenfield editor', () => {
     await user.click(screen.getByRole('button', { name: 'Processing settings' }))
 
     expect(screen.getByRole('button', { name: /Scope Project/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Stages 2 stages/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Stages 4 stages/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Output Japanese/ })).toBeInTheDocument()
   })
 
@@ -969,6 +1175,8 @@ describe('greenfield editor', () => {
             quantization: null,
             vision: true,
             reasoning: true,
+            reasoning_efforts: [],
+            reasoning_always_on: false,
           },
         },
       },
@@ -984,6 +1192,8 @@ describe('greenfield editor', () => {
           quantizations: [],
           vision: true,
           reasoning: true,
+          reasoning_efforts: [],
+          reasoning_always_on: false,
         },
       ],
     })
@@ -1025,6 +1235,8 @@ describe('greenfield editor', () => {
             quantization: null,
             vision: false,
             reasoning: true,
+            reasoning_efforts: [],
+            reasoning_always_on: false,
           },
           generation: {
             ...preferences.pipeline.translation.generation,
@@ -1045,6 +1257,8 @@ describe('greenfield editor', () => {
           quantizations: [],
           vision: false,
           reasoning: true,
+          reasoning_efforts: [],
+          reasoning_always_on: false,
         },
       ],
     })
@@ -1079,6 +1293,8 @@ describe('greenfield editor', () => {
           quantizations: [],
           vision: true,
           reasoning: false,
+          reasoning_efforts: [],
+          reasoning_always_on: false,
         },
       ],
     })
@@ -1101,7 +1317,14 @@ describe('greenfield editor', () => {
     installProject()
     const user = userEvent.setup()
     useKoharuStore.setState({ settingsOpen: true })
-    const save = vi.spyOn(commands, 'savePreferences').mockResolvedValue(preferences)
+    const save = vi
+      .spyOn(commands, 'savePreferences')
+      .mockImplementation(async (pipeline, providers, typesetting) => ({
+        ...preferences,
+        pipeline,
+        providers,
+        typesetting,
+      }))
     render(
       <ThemeProvider attribute='class'>
         <SettingsPage />
@@ -1110,7 +1333,6 @@ describe('greenfield editor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Pipeline' }))
     expect(screen.getByRole('heading', { level: 2, name: 'Pipeline' })).toBeInTheDocument()
-    expect(screen.getAllByRole('combobox')).toHaveLength(3)
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Text threshold' }), {
       target: { value: '0.42' },
     })
@@ -1120,6 +1342,30 @@ describe('greenfield editor', () => {
           processor: expect.objectContaining({
             'koharu-layout-rfdetr-seg-2xl': expect.objectContaining({ text_threshold: 0.42 }),
           }),
+        }),
+        preferences.providers,
+        preferences.typesetting,
+      ),
+    )
+    await user.click(screen.getByRole('combobox', { name: 'Artwork inpainting model' }))
+    expect(
+      screen.queryByRole('option', { name: 'FLUX.2 Klein 9B Lineart (Base)' }),
+    ).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('option', { name: 'FLUX.2 Klein 9B Uncensored' }))
+    // Each stage stores its own settings for the model.
+    for (const guidance of screen.getAllByRole('spinbutton', { name: 'Guidance scale' })) {
+      expect(guidance).toHaveValue(1)
+    }
+    expect(screen.getByRole('combobox', { name: 'Decensor model' })).toHaveTextContent(
+      'FLUX.2 Klein 9B Uncensored',
+    )
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Censor mask grow' }), {
+      target: { value: '6' },
+    })
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          censor_detection: expect.objectContaining({ mask_grow: 6 }),
         }),
         preferences.providers,
         preferences.typesetting,
@@ -1222,6 +1468,8 @@ describe('greenfield editor', () => {
           quantizations: [],
           vision: false,
           reasoning: true,
+          reasoning_efforts: [],
+          reasoning_always_on: false,
         },
       ],
     })
@@ -1251,6 +1499,112 @@ describe('greenfield editor', () => {
         configured.typesetting,
       ),
     )
+  })
+
+  it('saves a reasoning level only from the levels the selected model lists', async () => {
+    installProject()
+    const user = userEvent.setup()
+    const levels: Model['reasoning_efforts'] = ['low', 'high', 'max']
+    const configured: Preferences = {
+      ...preferences,
+      pipeline: {
+        ...preferences.pipeline,
+        translation: {
+          ...preferences.pipeline.translation,
+          model: {
+            provider: 'deepseek',
+            model: 'deepseek-flash',
+            quantization: null,
+            vision: false,
+            reasoning: true,
+            reasoning_efforts: levels,
+          },
+          generation: { ...preferences.pipeline.translation.generation, reasoning: true },
+        },
+      },
+    }
+    useKoharuStore.setState({
+      settingsOpen: true,
+      preferences: configured,
+      translationModels: [
+        {
+          provider: 'deepseek',
+          model: 'deepseek-flash',
+          name: 'DeepSeek Flash',
+          quantizations: [],
+          vision: false,
+          reasoning: true,
+          reasoning_efforts: levels,
+          reasoning_always_on: false,
+        },
+      ],
+    })
+    const save = vi
+      .spyOn(commands, 'savePreferences')
+      .mockImplementation(async (pipeline, providers, typesetting) => ({
+        ...configured,
+        pipeline,
+        providers,
+        typesetting,
+      }))
+    render(
+      <ThemeProvider attribute='class'>
+        <SettingsPage />
+      </ThemeProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Translation' }))
+    expect(screen.queryByText(/has no reasoning levels/)).not.toBeInTheDocument()
+    const level = screen.getByRole('combobox', { name: 'Reasoning level' })
+    expect(level).toHaveTextContent('Default')
+    await user.click(level)
+    expect(screen.queryByRole('option', { name: 'Medium' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('option', { name: 'Max' }))
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          translation: expect.objectContaining({
+            model: expect.objectContaining({ reasoning_efforts: levels }),
+            generation: expect.objectContaining({ reasoning: true, reasoning_effort: 'max' }),
+          }),
+        }),
+        configured.providers,
+        configured.typesetting,
+      ),
+    )
+
+    // Turning reasoning off keeps the chosen level for when it is turned back on.
+    save.mockClear()
+    await user.click(screen.getByRole('switch', { name: 'Enable reasoning' }))
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          translation: expect.objectContaining({
+            generation: expect.objectContaining({ reasoning: false, reasoning_effort: 'max' }),
+          }),
+        }),
+        configured.providers,
+        configured.typesetting,
+      ),
+    )
+  })
+
+  it('says when the selected model has no reasoning levels to choose from', () => {
+    installProject()
+    useKoharuStore.setState({ settingsOpen: true })
+    render(
+      <ThemeProvider attribute='class'>
+        <SettingsPage />
+      </ThemeProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Translation' }))
+    expect(
+      screen.getByText(
+        'This model has no reasoning levels. Reasoning can only be turned on or off.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Reasoning level' })).not.toBeInTheDocument()
   })
 
   it('keeps a configured provider credential private and allows clearing it', async () => {
@@ -1388,6 +1742,8 @@ describe('greenfield editor', () => {
           quantizations: [],
           vision: true,
           reasoning: true,
+          reasoning_efforts: [],
+          reasoning_always_on: false,
         },
       ],
     })
@@ -1514,28 +1870,6 @@ describe('greenfield editor', () => {
     )
   })
 
-  it('shows model resources in the left sidebar footer', () => {
-    useKoharuStore.setState({
-      resources: {
-        process_memory: 2 * 1024 ** 3,
-        system_memory: 64 * 1024 ** 3,
-        process_cpu: 8,
-        devices: [
-          {
-            name: 'GPU',
-            selected: true,
-            memory_budget: 16 * 1024 ** 3,
-            memory_used: 6 * 1024 ** 3,
-            utilization: 40,
-          },
-        ],
-      },
-    })
-    render(<ResourceMonitor />)
-    expect(screen.getByText('8%')).toBeInTheDocument()
-    expect(screen.getByText('3%')).toBeInTheDocument()
-  })
-
   it('keeps running work visible and stoppable', async () => {
     installProject()
     useKoharuStore.setState({
@@ -1543,12 +1877,14 @@ describe('greenfield editor', () => {
         job: {
           state: 'running',
           id: 'job',
+          kind: 'pipeline',
           completed: 1,
           total: 4,
           page: 'page',
           stage: 'ocr',
           model: 'manga-ocr',
           error: null,
+          policy_rejected_pages: [],
         },
       },
     })

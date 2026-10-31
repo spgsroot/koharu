@@ -6,19 +6,26 @@
     "version": "Версия"
   },
   "activity": {
+    "queued": "В очереди",
     "dismiss": "Закрыть",
     "downloadFailed": "Не удалось скачать.",
     "downloadingFiles": "Скачивание файлов: {{count}}",
     "downloadingFiles_one": "Скачивание файлов: {{count}}",
     "downloadingFiles_other": "Скачивание файлов: {{count}}",
+    "importApply": "Применить",
+    "importDiscard": "Отклонить",
+    "importIssues": "Ошибок: {{errors}} · предупреждений: {{warnings}}",
     "modelDownload": "Скачивание модели",
     "processing": "Обработка",
+    "pageLabel": "Страница {{number}}: {{label}}",
     "processingFailed": "Ошибка обработки.",
     "stop": "Остановить",
     "title": "Активность"
   },
   "agent": {
     "account": "Учётная запись ChatGPT",
+    "accountGrok": "Учётная запись xAI",
+    "accountKimi": "Аккаунт Kimi Code",
     "applying": "Применение изменений проекта…",
     "automatic": "Автоматически",
     "cancel": "Отмена",
@@ -31,8 +38,11 @@
     "loading": "Загрузка Codex…",
     "message": "Сообщение агенту Koharu",
     "model": "Модель Codex",
+    "modelGrok": "Модель Grok",
+    "modelKimi": "Модель Kimi",
     "placeholder": "Попросите Koharu поработать над проектом…",
     "properties": "Свойства",
+    "provider": "Провайдер",
     "reasoning": "Рассуждение",
     "reasoningLevels": {
       "high": "Высокий",
@@ -45,7 +55,13 @@
     "send": "Отправить",
     "signIn": "Войти через Codex",
     "signInDescription": "Войдите с подпиской ChatGPT. Koharu использует авторизацию по коду устройства и никогда не запрашивает ключ API.",
+    "signInDescriptionGrok": "Войдите в аккаунт xAI. Koharu использует авторизацию по коду устройства и никогда не запрашивает ключ API.",
+    "signInDescriptionKimi": "Войдите по подписке Kimi Code. Koharu использует вход по коду устройства и никогда не запрашивает ключ API.",
+    "signInGrok": "Войти через Grok",
+    "signInKimi": "Войти через Kimi",
     "signInTitle": "Подключить Codex",
+    "signInTitleGrok": "Подключить Grok",
+    "signInTitleKimi": "Подключить Kimi",
     "signOut": "Выйти",
     "signingIn": "Ожидание входа…",
     "thinking": "Размышление…",
@@ -53,8 +69,10 @@
     "working": "Работа…"
   },
   "canvas": {
+    "censorMask": "Маска цензуры",
     "empty": "Выберите страницу, чтобы начать.",
     "fit": "Вписать в окно",
+    "noCensorMask": "Запустите обнаружение цензуры для просмотра маски",
     "surface": "Холст Koharu",
     "unavailable": "Холст WebGPU недоступен"
   },
@@ -121,6 +139,41 @@
       "system": "Системные"
     },
     "style": "Стиль"
+  },
+  "history": {
+    "title": "История",
+    "clear": "Очистить историю",
+    "clearConfirmTitle": "Очистить историю?",
+    "clearConfirmDescription": "Будут удалены все состояния отмены и повтора. Документ не изменится.",
+    "clearConfirmAction": "Очистить",
+    "snapshot": "Создать снимок",
+    "snapshots": "Снимки",
+    "restore": "Восстановить",
+    "deleteSnapshot": "Удалить снимок",
+    "empty": "Действий пока нет.",
+    "state": {
+      "open": "Открытие",
+      "import_pages": "Импорт страниц",
+      "import_translations": "Импорт переводов",
+      "rename_page": "Переименование страницы",
+      "delete_pages": "Удаление страниц",
+      "move_page": "Перемещение страницы",
+      "add_text": "Добавление текста",
+      "source_text": "Исходный текст",
+      "translation": "Перевод",
+      "typography": "Типографика",
+      "geometry": "Геометрия",
+      "transform": "Трансформация",
+      "toggle_layer": "Видимость слоя",
+      "opacity": "Непрозрачность",
+      "delete_layers": "Удаление слоёв",
+      "paste_layers": "Вставка слоёв",
+      "move_layer": "Перемещение слоя",
+      "brush": "Кисть",
+      "erase": "Ластик",
+      "snapshot_restore": "Восстановление снимка",
+      "pipeline_stage": "Обработка"
+    }
   },
   "inference": {
     "currentPage": "Текущая страница",
@@ -243,6 +296,9 @@
     "about": "О программе",
     "closeProject": "Закрыть проект",
     "delete": "Удалить выбранное",
+    "copy": "Копировать",
+    "cut": "Вырезать",
+    "paste": "Вставить",
     "discord": "Discord",
     "edit": "Правка",
     "exportPng": "Экспорт PNG…",
@@ -267,6 +323,7 @@
     "baseUrl": "Базовый URL",
     "default": "По умолчанию",
     "instructions": "Инструкции",
+    "sourceLanguage": "Язык оригинала",
     "targetLanguage": "Язык перевода"
   },
   "modelPicker": {
@@ -297,21 +354,301 @@
     "pages": "Страницы",
     "rename": "Переименовать",
     "renameDescription": "Выберите новое имя для страницы.",
-    "renameTitle": "Переименовать страницу"
+    "renameTitle": "Переименовать страницу",
+    "selected": "Выбрано: {{count}}"
+  },
+  "orders": {
+    "workspace": {
+      "orders": "Заказы",
+      "editor": "Редактор",
+      "projects": "Все проекты"
+    },
+    "breadcrumb": {
+      "order": "Заказ {{number}}"
+    },
+    "header": {
+      "searchPlaceholder": "Поиск по номеру, названию, клиенту…",
+      "filters": "Фильтры",
+      "createOrder": "Создать заказ"
+    },
+    "summary": {
+      "overdue": "Просрочено",
+      "due_today": "Дедлайн сегодня",
+      "blocked": "Заблокировано",
+      "ready": "Готово к выдаче"
+    },
+    "views": {
+      "label": "Представления",
+      "attention": "Требуют внимания",
+      "mine": "Мои",
+      "today": "Сегодня",
+      "all": "Все"
+    },
+    "filters": {
+      "lifecycle": "Статус",
+      "stage": "Этап",
+      "anyStage": "Любой этап",
+      "assignee": "Ответственный",
+      "client": "Клиент",
+      "needsAttention": "Только требующие внимания"
+    },
+    "lifecycle": {
+      "active": "Активный",
+      "on_hold": "На паузе",
+      "completed": "Завершён",
+      "delivered": "Доставлен",
+      "cancelled": "Отменён",
+      "confirm": "Сменить статус на «{{status}}»?"
+    },
+    "stages": {
+      "title": "Этапы производства",
+      "intake": "Приём",
+      "preparation": "Подготовка",
+      "translation": "Перевод",
+      "editing": "Редактура",
+      "typesetting": "Вёрстка",
+      "qa": "Контроль качества",
+      "delivery": "Доставка",
+      "lockedHint": "Сначала закройте блокирующие заметки.",
+      "block": "Заблокировать",
+      "unblock": "Разблокировать",
+      "complete": "Завершить этап",
+      "next": "Следующий этап",
+      "returnToEditing": "Вернуть на редактуру",
+      "blockPlaceholder": "Что мешает продолжить работу?",
+      "blockSubmit": "Заблокировать этап",
+      "allDone": "Все этапы завершены."
+    },
+    "stageStates": {
+      "not_started": "Не начат",
+      "in_progress": "В работе",
+      "blocked": "Заблокирован",
+      "done": "Готов"
+    },
+    "priority": {
+      "normal": "Обычный",
+      "high": "Высокий",
+      "urgent": "Срочный"
+    },
+    "attention": {
+      "overdue": "Просрочен",
+      "due_soon": "Дедлайн скоро",
+      "blocked": "Заблокирован",
+      "import_failed": "Ошибка импорта",
+      "import_unreviewed": "Импорт ждёт проверки",
+      "pipeline_failed": "Ошибка конвейера",
+      "ready_to_deliver": "Готов к выдаче",
+      "stale": "Нет активности"
+    },
+    "sla": {
+      "ok": "В норме",
+      "risk": "Риск срыва",
+      "breached": "Просрочен"
+    },
+    "table": {
+      "order": "Заказ",
+      "assignee": "Ответственный",
+      "deadline": "Дедлайн",
+      "progress": "{{translated}} из {{total}} страниц",
+      "progressTitle": "Прогресс",
+      "progressLabel": "Прогресс перевода",
+      "noPages": "Нет страниц",
+      "sla": "Срок",
+      "stage": "Этап",
+      "status": "Статус",
+      "attention": "Внимание",
+      "actions": "Действия",
+      "empty": "Заказы не найдены.",
+      "total": "Заказов: {{count}}",
+      "open": "Открыть",
+      "addBlocker": "Добавить блокер к заказу {{number}}",
+      "addBlockerHint": "Быстрый блокер",
+      "sortNearestOn": "Сначала ближайший дедлайн",
+      "sortNearestOff": "Порядок по умолчанию"
+    },
+    "blockerDialog": {
+      "title": "Новый блокер",
+      "description": "Заказ {{number}}. Блокирующая заметка остановит текущий этап.",
+      "placeholder": "Что мешает продолжить работу?",
+      "submit": "Заблокировать этап"
+    },
+    "sheet": {
+      "title": "Заказ",
+      "editTitle": "Изменить название",
+      "edit": "Изменить",
+      "pagesChip": "Страницы: {{translated}} из {{total}}",
+      "blockersChip": "Блокеров: {{count}}"
+    },
+    "actions": {
+      "openEditor": "Открыть редактор",
+      "attachProject": "Прикрепить проект",
+      "exportXlsx": "Экспорт (XLSX)",
+      "exportCsv": "CSV",
+      "import": "Импорт переводов",
+      "exportSaved": "Файл сохранён"
+    },
+    "form": {
+      "number": "Номер",
+      "numberPlaceholder": "ORD-2026-0001 (необязательно)",
+      "title": "Название",
+      "clientName": "Клиент",
+      "assignee": "Ответственный",
+      "priority": "Приоритет",
+      "lifecycle": "Статус",
+      "sourceLanguage": "Язык оригинала",
+      "targetLanguage": "Язык перевода",
+      "deadline": "Дедлайн",
+      "brief": "Бриф",
+      "description": "Заказ — административная запись. Содержимое страниц живёт в проекте.",
+      "createTitle": "Новый заказ",
+      "editTitle": "Изменить заказ {{number}}",
+      "create": "Создать заказ",
+      "save": "Сохранить"
+    },
+    "tabs": {
+      "main": "Основное",
+      "notes": "Заметки",
+      "activity": "Активность",
+      "imports": "Импорты"
+    },
+    "notes": {
+      "kind": "Тип заметки",
+      "placeholder": "Текст заметки…",
+      "add": "Добавить заметку",
+      "empty": "Заметок пока нет.",
+      "resolved": "Закрыта: {{by}}",
+      "resolve": "Закрыть",
+      "reopen": "Открыть снова",
+      "delete": "Удалить",
+      "deleteConfirm": "Удалить заметку? Действие запишется в активность."
+    },
+    "noteKinds": {
+      "internal": "Внутренняя",
+      "client": "Клиентская",
+      "blocker": "Блокер",
+      "qa": "Контроль качества"
+    },
+    "activity": {
+      "empty": "Событий пока нет.",
+      "order_created": "Заказ создан",
+      "order_updated": "Заказ изменён",
+      "project_attached": "Проект прикреплён",
+      "project_detached": "Проект отвязан",
+      "lifecycle_changed": "Статус изменён",
+      "stage_started": "Этап начат",
+      "stage_completed": "Этап завершён",
+      "stage_blocked": "Этап заблокирован",
+      "stage_unblocked": "Этап разблокирован",
+      "note_added": "Заметка добавлена",
+      "note_resolved": "Заметка закрыта",
+      "note_deleted": "Заметка удалена",
+      "import_uploaded": "Перевод загружен",
+      "import_applied": "Импорт применён",
+      "import_failed": "Ошибка импорта",
+      "import_discarded": "Импорт отклонён",
+      "pipeline_succeeded": "Конвейер завершён",
+      "pipeline_failed": "Ошибка конвейера"
+    },
+    "importStates": {
+      "ready": "Готов к применению",
+      "needs_attention": "Требует проверки",
+      "failed": "Ошибка",
+      "applied": "Применён"
+    },
+    "imports": {
+      "empty": "Импортов пока нет.",
+      "counts": "принято: {{accepted}} · ошибок: {{errors}} · предупреждений: {{warnings}}",
+      "report": "Отчёт CSV",
+      "reportSaved": "Отчёт сохранён"
+    },
+    "import": {
+      "title": "Предпросмотр импорта",
+      "row": "Строка {{row}}",
+      "errorsCount": "Ошибок: {{count}}",
+      "warningsCount": "Предупреждений: {{count}}",
+      "acceptedCount": "Применится: {{accepted}} из {{total}}",
+      "errorsHeading": "Блокирующие ошибки ({{count}})",
+      "warningsHeading": "Предупреждения ({{count}})",
+      "page": "Страница",
+      "segment": "Сегмент",
+      "source": "Оригинал",
+      "translation": "Перевод",
+      "change": "Изменение",
+      "apply": "Применить импорт",
+      "discard": "Отклонить",
+      "close": "Закрыть",
+      "applyHint": "Исправьте ошибки в файле и загрузите его ещё раз."
+    },
+    "importChanges": {
+      "new": "Новый",
+      "changed": "Изменён",
+      "unchanged": "Без изменений"
+    },
+    "duplicate": {
+      "title": "Файл уже загружался",
+      "description": "Этот файл уже импортировали в этот заказ ранее. Дубликат не создан.",
+      "ok": "Понятно"
+    },
+    "attach": {
+      "title": "Прикрепить проект",
+      "description": "Заказ редактируется в одном проекте Koharu.",
+      "noProjects": "Проектов нет — создайте новый ниже.",
+      "newPlaceholder": "Имя нового проекта",
+      "createAndAttach": "Создать и прикрепить"
+    }
   },
   "outputPicker": {
     "instructions": "Инструкции по переводу",
     "instructionsPlaceholder": "Необязательные указания по стилю, именам и форматированию.",
+    "sourceLanguage": "Язык оригинала",
     "targetLanguage": "Язык перевода",
-    "title": "Вывод перевода"
+    "title": "Вывод перевода",
+    "validators": "Автоматические валидаторы"
+  },
+  "repairPresets": {
+    "delete": "Удалить пресет",
+    "label": "Пресет",
+    "name": "Название пресета",
+    "placeholder": "Выберите пресет",
+    "rename": "Переименовать",
+    "save": "Сохранить как пресет"
+  },
+  "systemPrompt": {
+    "editBuiltIn": "Изменить встроенный промпт",
+    "hint": "Пустое поле использует встроенный промпт. {source} и {target} подставляют языки запуска.",
+    "label": "Системный промпт",
+    "profile": "Профиль контента",
+    "profiles": {
+      "comic": "Комикс",
+      "hentai": "Хентай",
+      "manga": "Обычная манга"
+    }
+  },
+  "translationValidators": {
+    "add": "Добавить правило",
+    "chinese": "Китайские иероглифы",
+    "customRule": "Пользовательское правило валидации",
+    "japanese": "Японская кана",
+    "korean": "Корейские символы",
+    "latin": "Латинские буквы",
+    "name": "Название правила",
+    "namePlaceholder": "например, Без латинских букв",
+    "pattern": "Регулярное выражение",
+    "patternPlaceholder": "[A-Za-z]",
+    "presets": "Пресеты запрета письменностей",
+    "remove": "Удалить правило"
   },
   "phase": {
+    "censor_detection": "Обнаружение цензуры",
+    "decensor": "Децензурирование",
     "detection": "Обнаружение",
     "inpainting": "Восстановление",
     "ocr": "OCR",
     "translation": "Перевод"
   },
   "phaseDescription": {
+    "censor_detection": "Находит скрытые области и сохраняет маску.",
+    "decensor": "Восстанавливает закрытые области выбранной моделью.",
     "detection": "Находит текст на странице.",
     "inpainting": "Восстанавливает рисунок после удаления текста.",
     "ocr": "Считывает текст внутри каждой области.",
@@ -321,6 +658,7 @@
     "atlas-cloud": "Языковые модели, размещённые в Atlas.",
     "caiyun": "API перевода Caiyun.",
     "claude": "Модели Anthropic Claude.",
+    "cursor": "Модели Cursor Cloud Agent.",
     "deepl": "API перевода DeepL.",
     "deepseek": "Языковые модели DeepSeek.",
     "gemini": "Модели Google Gemini.",
@@ -335,14 +673,16 @@
   },
   "resources": {
     "cpu": "CPU",
+    "gpu": "GPU",
+    "gpuUtilization": "Использование GPU",
     "processUtilization": "Использование процессом",
     "ram": "RAM",
-    "summary": "ОЗУ {{ram}}%, ЦП {{cpu}}%",
+    "summary": "ОЗУ {{ram}}, ЦП {{cpu}}",
+    "summaryGpu": "ОЗУ {{ram}}, ЦП {{cpu}}, ГП {{gpu}}",
     "title": "Ресурсы системы",
-    "tooltip": "ОЗУ {{ramUsed}} из {{ramTotal}} · ЦП {{cpu}}%",
+    "unavailable": "Недоступно",
     "usedOfTotal": "Использовано {{used}} из {{total}}",
-    "vramUnavailable": "Недоступно",
-    "vramValue": "Видеопамять: {{value}}"
+    "vram": "Видеопамять"
   },
   "settings": {
     "appearance": {
@@ -372,6 +712,19 @@
       "temperature": "Температура",
       "reasoning": "Рассуждение",
       "reasoningDescription": "Использует рассуждение модели во время перевода.",
+      "reasoningLevel": "Уровень рассуждения",
+      "reasoningLevelDescription": "Насколько глубоко модель рассуждает, пока рассуждение включено. «По умолчанию» оставляет настройку самого провайдера.",
+      "reasoningLevelUnsupported": "Выбранная модель не поддерживает этот уровень. Выберите другой уровень или «По умолчанию».",
+      "reasoningLevels": {
+        "high": "Высокий",
+        "low": "Низкий",
+        "max": "Максимальный",
+        "medium": "Средний",
+        "minimal": "Минимальный",
+        "xhigh": "Очень высокий"
+      },
+      "reasoningOnOffOnly": "У этой модели нет уровней рассуждения. Рассуждение можно только включить или выключить.",
+      "reasoningUnsupported": "Эта модель не поддерживает рассуждение.",
       "title": "Генерация",
       "topK": "Топ K",
       "topP": "Top P",
@@ -380,14 +733,44 @@
     },
     "loading": "Загрузка настроек…",
     "pipeline": {
+      "censorDetection": {
+        "description": "Находит скрытые области и сохраняет маску.",
+        "title": "Обнаружение цензуры"
+      },
       "description": "Выберите модели и параметры обработки каждой страницы.",
       "modelLabel": "Модель «{{stage}}»",
       "options": {
         "bubbleThreshold": "Порог пузыря",
+        "guidanceScale": "Сила промпта (CFG)",
+        "inferenceSteps": "Шаги генерации",
+        "lineartStrength": "Сила линейного контура",
+        "loraPath": "Файл LoRA (необязательно)",
+        "loraStrength": "Сила LoRA (0 = выключена)",
         "negativePrompt": "Негативный промпт",
         "panelThreshold": "Порог панели",
         "prompt": "Промпт",
-        "textThreshold": "Порог текста"
+        "textThreshold": "Порог текста",
+        "endpoint": "Адрес ComfyUI",
+        "checkpoint": "Чекпойнт",
+        "controlnet": "ControlNet",
+        "positivePrompt": "Позитивный промпт",
+        "seed": "Сид",
+        "denoise": "Сила перерисовки",
+        "automaticCensorMask": "Автоматическая маска цензуры",
+        "detectMosaic": "Обнаруживать мозаику",
+        "censorThreshold": "Порог обнаружения цензуры",
+        "censorMaskGrow": "Расширение маски цензуры",
+        "censorMaskBlur": "Размытие маски цензуры",
+        "maskPadding": "Отступ маски",
+        "maskGrow": "Расширение маски",
+        "maskBlur": "Размытие маски",
+        "colorMatchStrength": "Согласование цвета",
+        "timeoutSeconds": "Тайм-аут (секунды)"
+      },
+      "profiles": {
+        "flux2-klein-9b-uncensored": "Дистиллированная 9B Q8 с uncensored Q4_K_M энкодером",
+        "diffusioncreampy-animagine-xl-4": "Локальный SDXL-инпейнтинг через ComfyUI для аниме и манги на Animagine XL 4.0 Opt.",
+        "diffusioncreampy-illustrious-xl-2": "Локальный SDXL-инпейнтинг через ComfyUI для детальных иллюстраций на Illustrious XL 2.0."
       },
       "processing": "Обработка",
       "stages": {
@@ -395,9 +778,21 @@
           "description": "Находит текст, пузыри и панели.",
           "title": "Обнаружение"
         },
-        "inpainting": {
-          "description": "Восстанавливает изображение под удалённым текстом.",
-          "title": "Восстановление"
+        "decensor": {
+          "description": "Восстанавливает закрытые области выбранной моделью.",
+          "title": "Децензурирование"
+        },
+        "artwork": {
+          "description": "Восстанавливает рисунок под текстом и звуковыми эффектами вне пузырей.",
+          "title": "Восстановление: рисунок"
+        },
+        "manual": {
+          "description": "Нарисуйте маску и восстановите область через FLUX с отдельным промптом и параметрами.",
+          "title": "Ручной Inpainting (FLUX)"
+        },
+        "bubbles": {
+          "description": "Быстро стирает текст внутри пузырей.",
+          "title": "Восстановление: пузыри"
         },
         "ocr": {
           "description": "Считывает исходный текст в обнаруженных областях.",
@@ -429,6 +824,7 @@
       "providers": "Провайдеры",
       "shortcuts": "Сочетания клавиш",
       "translation": "Перевод",
+      "usage": "Расход токенов",
       "typesetting": "Вёрстка"
     },
     "title": "Настройки",
@@ -444,6 +840,11 @@
       "quantization": "Квантование",
       "quantizationDescription": "Меньшие форматы используют меньше памяти, обычно за счёт качества.",
       "selectQuantization": "Выбрать квантование",
+      "sourceLanguageDescription": "Выберите язык исходного текста.",
+      "systemPrompt": "Системный промпт",
+      "systemPromptDescription": "Выберите профиль для запусков из редактора. У каждого профиля свой промпт; заказы из Telegram используют профиль заказа.",
+      "validators": "Автоматические валидаторы",
+      "validatorsDescription": "Отклоняет совпавший текст перевода и один раз перегенерирует его с корректирующей инструкцией.",
       "targetLanguageDescription": "Выберите язык, на который нужно перевести текст.",
       "title": "Перевод",
       "translationModel": "Модель перевода",
@@ -499,38 +900,110 @@
     "brushSizePixels": "Размер кисти: {{size}} пикс.",
     "brushSizeShort": "{{size}} пкс",
     "color_picker": "Пипетка",
+    "decensor": "Децензурирование",
     "decreaseBrushSize": "Уменьшить размер кисти",
     "draw": "Рисование",
     "eraser": "Ластик",
     "increaseBrushSize": "Увеличить размер кисти",
     "pan": "Перемещение",
-    "remove": "Удаление",
+    "fast": "Fast",
+    "inpainting": "Inpainting (FLUX)",
+    "applyRepairSettings": "Применить настройки",
+    "repairSettingsHint": "Примените настройки перед рисованием. Принятые маски сохраняют свои исходные параметры.",
     "select": "Выбор",
     "text": "Текст"
   },
-  "updater": {
-    "available": {
-      "description": "Koharu <strong>{{version}}</strong> готов к установке",
-      "title": "Доступно обновление"
-    },
-    "close": "Закрыть",
-    "downloading": {
-      "subtitle": "Koharu {{version}}",
-      "title": "Загрузка обновления…"
-    },
-    "error": {
-      "description": "Что-то пошло не так во время обновления",
-      "title": "Ошибка обновления"
-    },
-    "later": "Позже",
-    "noNotes": "Примечания к выпуску отсутствуют.",
-    "retry": "Повторить",
-    "update": "Обновить"
+  "usage": {
+    "title": "Расход токенов",
+    "description": "Локальный журнал каждого запроса перевода и AI-агента.",
+    "privacy": "Промты, изображения, ответы, учётные данные и текст рассуждений в этот журнал не сохраняются.",
+    "unknownNotice": "Прочерк означает, что провайдер не сообщил значение. Стоимость берётся из ответа провайдера, а не оценивается. Reasoning и кэш — детализация токенов; прибавлять их к общему итогу не нужно.",
+    "provider": "Провайдер",
+    "model": "Модель",
+    "from": "С даты",
+    "to": "По дату включительно",
+    "apply": "Применить фильтры",
+    "refresh": "Обновить",
+    "requests": "Запросы",
+    "input": "Входные токены",
+    "output": "Выходные токены",
+    "total": "Всего токенов",
+    "cost": "Сообщённая стоимость",
+    "missingUsage": "Запросов без данных о токенах: {{count}}",
+    "missingCost": "Запросов без данных о стоимости: {{count}}",
+    "coverage": "Данные есть для {{known}} из {{total}} запросов",
+    "empty": "По выбранным фильтрам запросов нет.",
+    "failed": "Не удалось прочитать локальный журнал расхода.",
+    "time": "Время",
+    "operation": "Операция",
+    "status": "Результат",
+    "latency": "Длительность",
+    "details": "Детали запроса",
+    "detailsFor": "Детали запроса {{id}}",
+    "previous": "Новее",
+    "next": "Старее",
+    "page": "Страница {{number}}",
+    "identity": "Запрос и контекст",
+    "tokens": "Детализация токенов",
+    "parameters": "Параметры генерации",
+    "invalidDates": "Начало периода не должно быть позже его конца.",
+    "storage": "Локальный журнал: {{path}}",
+    "fields": {
+      "provider": "Провайдер",
+      "requested_model": "Запрошенная модель",
+      "resolved_model": "Модель из ответа",
+      "request_id": "ID запроса провайдера",
+      "response_id": "ID ответа провайдера",
+      "attempt": "Попытка",
+      "http_status": "HTTP-статус",
+      "error_kind": "Категория ошибки",
+      "project_id": "Проект",
+      "page_id": "Страница",
+      "job_id": "Задание / запуск",
+      "source_language": "Исходный язык",
+      "target_language": "Целевой язык",
+      "segment_count": "Сегменты",
+      "image_count": "Изображения",
+      "context_count": "Элементы контекста",
+      "reasoning": "Рассуждение включено",
+      "reasoning_effort": "Уровень reasoning",
+      "reasoning_tokens": "Токены рассуждений",
+      "cache_read_tokens": "Входные токены из кэша",
+      "cache_write_tokens": "Токены записи в кэш",
+      "image_input_tokens": "Входные токены изображений",
+      "image_output_tokens": "Выходные токены изображений",
+      "audio_input_tokens": "Входные аудиотокены",
+      "audio_output_tokens": "Выходные аудиотокены",
+      "cost_source": "Источник стоимости"
+    }
   },
   "window": {
     "close": "Закрыть",
     "maximize": "Развернуть",
     "minimize": "Свернуть",
     "restore": "Восстановить"
+  },
+  "galleryImport": {
+    "cancel": "Отмена",
+    "close": "Закрыть",
+    "cookies": "Куки exhentai",
+    "cookiesHint": "Вставьте заголовок cookie с ipb_member_id, ipb_pass_hash и igneous. Он сохраняется в системном хранилище ключей и больше не показывается.",
+    "cookiesOptional": "(только для exhentai)",
+    "description": "Скачать несколько галерей в один новый проект в заданном порядке. Поддерживаются ссылки e-hentai, exhentai и nhentai.",
+    "downloading": "Скачиваю страницы…",
+    "error": "Импорт не удался. Проверьте ссылки и повторите.",
+    "galleries": "Галереи",
+    "import": "Импортировать",
+    "importing": "Импорт…",
+    "importingPages": "Создаю проект…",
+    "inspecting": "Читаю данные галереи…",
+    "name": "Название проекта",
+    "nameOptional": "(необязательно)",
+    "pages": "Страницы",
+    "progress": "Ход импорта",
+    "success": "Проект создан",
+    "title": "Импорт галерей",
+    "urls": "Ссылки на галереи (по одной в строке, до 20)",
+    "urlsPlaceholder": "https://e-hentai.org/g/123456/abcdef0123/\nhttps://nhentai.net/g/654321/"
   }
 }

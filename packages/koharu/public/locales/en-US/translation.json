@@ -6,19 +6,26 @@
     "version": "Version"
   },
   "activity": {
+    "queued": "Queued",
     "dismiss": "Dismiss",
     "downloadFailed": "Download failed.",
     "downloadingFiles": "Downloading {{count}} files",
     "downloadingFiles_one": "Downloading {{count}} file",
     "downloadingFiles_other": "Downloading {{count}} files",
+    "importApply": "Apply",
+    "importDiscard": "Discard",
+    "importIssues": "{{errors}} errors · {{warnings}} warnings",
     "modelDownload": "Model download",
     "processing": "Processing",
+    "pageLabel": "Page {{number}}: {{label}}",
     "processingFailed": "Processing failed.",
     "stop": "Stop",
     "title": "Activity"
   },
   "agent": {
     "account": "ChatGPT account",
+    "accountGrok": "xAI account",
+    "accountKimi": "Kimi Code account",
     "applying": "Applying project changes...",
     "automatic": "Automatic",
     "cancel": "Cancel",
@@ -31,8 +38,11 @@
     "loading": "Loading Codex...",
     "message": "Message Koharu Agent",
     "model": "Codex model",
+    "modelGrok": "Grok model",
+    "modelKimi": "Kimi model",
     "placeholder": "Ask Koharu to work on this project...",
     "properties": "Properties",
+    "provider": "Provider",
     "reasoning": "Reasoning",
     "reasoningLevels": {
       "high": "High",
@@ -45,7 +55,13 @@
     "send": "Send",
     "signIn": "Sign in with Codex",
     "signInDescription": "Sign in with your ChatGPT subscription. Koharu uses device-code authentication and never asks for an API key.",
+    "signInDescriptionGrok": "Sign in with your xAI account. Koharu uses device-code authentication and never asks for an API key.",
+    "signInDescriptionKimi": "Sign in with your Kimi Code subscription. Koharu uses device-code authentication and never asks for an API key.",
+    "signInGrok": "Sign in with Grok",
+    "signInKimi": "Sign in with Kimi",
     "signInTitle": "Connect Codex",
+    "signInTitleGrok": "Connect Grok",
+    "signInTitleKimi": "Connect Kimi",
     "signOut": "Sign out",
     "signingIn": "Waiting for sign-in...",
     "thinking": "Thinking...",
@@ -53,8 +69,10 @@
     "working": "Working..."
   },
   "canvas": {
+    "censorMask": "Censor mask",
     "empty": "Select a page to begin.",
     "fit": "Fit Window",
+    "noCensorMask": "Run censor detection to preview its mask",
     "surface": "Koharu canvas",
     "unavailable": "WebGPU canvas unavailable"
   },
@@ -121,6 +139,41 @@
       "system": "System"
     },
     "style": "Style"
+  },
+  "history": {
+    "title": "History",
+    "clear": "Clear history",
+    "clearConfirmTitle": "Clear history?",
+    "clearConfirmDescription": "This removes all undo and redo states. The document itself is not changed.",
+    "clearConfirmAction": "Clear",
+    "snapshot": "Create snapshot",
+    "snapshots": "Snapshots",
+    "restore": "Restore",
+    "deleteSnapshot": "Delete snapshot",
+    "empty": "No recorded actions yet.",
+    "state": {
+      "open": "Open",
+      "import_pages": "Import Pages",
+      "import_translations": "Translation import",
+      "rename_page": "Rename Page",
+      "delete_pages": "Delete Pages",
+      "move_page": "Move Page",
+      "add_text": "Add Text",
+      "source_text": "Source Text",
+      "translation": "Translation",
+      "typography": "Typography",
+      "geometry": "Geometry",
+      "transform": "Transform",
+      "toggle_layer": "Toggle Layer",
+      "opacity": "Opacity",
+      "delete_layers": "Delete Layers",
+      "paste_layers": "Paste Layers",
+      "move_layer": "Move Layer",
+      "brush": "Brush Tool",
+      "erase": "Eraser",
+      "snapshot_restore": "Snapshot restore",
+      "pipeline_stage": "Process"
+    }
   },
   "inference": {
     "currentPage": "Current page",
@@ -243,6 +296,9 @@
     "about": "About",
     "closeProject": "Close Project",
     "delete": "Delete Selected",
+    "copy": "Copy",
+    "cut": "Cut",
+    "paste": "Paste",
     "discord": "Discord",
     "edit": "Edit",
     "exportPng": "Export PNG…",
@@ -267,6 +323,7 @@
     "baseUrl": "Base URL",
     "default": "Default",
     "instructions": "Instructions",
+    "sourceLanguage": "Source language",
     "targetLanguage": "Target language"
   },
   "modelPicker": {
@@ -297,21 +354,301 @@
     "pages": "Pages",
     "rename": "Rename",
     "renameDescription": "Choose a new name for this page.",
-    "renameTitle": "Rename page"
+    "renameTitle": "Rename page",
+    "selected": "{{count}} selected"
+  },
+  "orders": {
+    "workspace": {
+      "orders": "Orders",
+      "editor": "Editor",
+      "projects": "All projects"
+    },
+    "breadcrumb": {
+      "order": "Order {{number}}"
+    },
+    "header": {
+      "searchPlaceholder": "Search by number, title, client…",
+      "filters": "Filters",
+      "createOrder": "Create order"
+    },
+    "summary": {
+      "overdue": "Overdue",
+      "due_today": "Deadline today",
+      "blocked": "Blocked",
+      "ready": "Ready to deliver"
+    },
+    "views": {
+      "label": "Saved views",
+      "attention": "Needs attention",
+      "mine": "Mine",
+      "today": "Today",
+      "all": "All"
+    },
+    "filters": {
+      "lifecycle": "Status",
+      "stage": "Stage",
+      "anyStage": "Any stage",
+      "assignee": "Assignee",
+      "client": "Client",
+      "needsAttention": "Needs attention only"
+    },
+    "lifecycle": {
+      "active": "Active",
+      "on_hold": "On hold",
+      "completed": "Completed",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled",
+      "confirm": "Change status to \"{{status}}\"?"
+    },
+    "stages": {
+      "title": "Production stages",
+      "intake": "Intake",
+      "preparation": "Preparation",
+      "translation": "Translation",
+      "editing": "Editing",
+      "typesetting": "Typesetting",
+      "qa": "Quality control",
+      "delivery": "Delivery",
+      "lockedHint": "Resolve the blocking notes first.",
+      "block": "Block",
+      "unblock": "Unblock",
+      "complete": "Complete stage",
+      "next": "Next stage",
+      "returnToEditing": "Back to editing",
+      "blockPlaceholder": "What blocks this stage?",
+      "blockSubmit": "Block stage",
+      "allDone": "All stages are complete."
+    },
+    "stageStates": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "blocked": "Blocked",
+      "done": "Done"
+    },
+    "priority": {
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "attention": {
+      "overdue": "Overdue",
+      "due_soon": "Deadline soon",
+      "blocked": "Blocked",
+      "import_failed": "Import failed",
+      "import_unreviewed": "Import awaits review",
+      "pipeline_failed": "Pipeline failed",
+      "ready_to_deliver": "Ready to deliver",
+      "stale": "No activity"
+    },
+    "sla": {
+      "ok": "On track",
+      "risk": "At risk",
+      "breached": "Overdue"
+    },
+    "table": {
+      "order": "Order",
+      "assignee": "Assignee",
+      "deadline": "Deadline",
+      "progress": "{{translated}} of {{total}} pages",
+      "progressTitle": "Progress",
+      "progressLabel": "Translation progress",
+      "noPages": "No pages",
+      "sla": "SLA",
+      "stage": "Stage",
+      "status": "Status",
+      "attention": "Attention",
+      "actions": "Actions",
+      "empty": "No orders found.",
+      "total": "Orders: {{count}}",
+      "open": "Open",
+      "addBlocker": "Add a blocker to order {{number}}",
+      "addBlockerHint": "Quick blocker",
+      "sortNearestOn": "Nearest deadline first",
+      "sortNearestOff": "Default order"
+    },
+    "blockerDialog": {
+      "title": "New blocker",
+      "description": "Order {{number}}. A blocking note stops the current stage.",
+      "placeholder": "What prevents the work from moving on?",
+      "submit": "Block stage"
+    },
+    "sheet": {
+      "title": "Order",
+      "editTitle": "Edit title",
+      "edit": "Edit",
+      "pagesChip": "Pages: {{translated}} of {{total}}",
+      "blockersChip": "Blockers: {{count}}"
+    },
+    "actions": {
+      "openEditor": "Open editor",
+      "attachProject": "Attach project",
+      "exportXlsx": "Export (XLSX)",
+      "exportCsv": "CSV",
+      "import": "Import translations",
+      "exportSaved": "File saved"
+    },
+    "form": {
+      "number": "Number",
+      "numberPlaceholder": "ORD-2026-0001 (optional)",
+      "title": "Title",
+      "clientName": "Client",
+      "assignee": "Assignee",
+      "priority": "Priority",
+      "lifecycle": "Status",
+      "sourceLanguage": "Source language",
+      "targetLanguage": "Target language",
+      "deadline": "Deadline",
+      "brief": "Brief",
+      "description": "An order is an administrative record. Page content lives in the project.",
+      "createTitle": "New order",
+      "editTitle": "Edit order {{number}}",
+      "create": "Create order",
+      "save": "Save"
+    },
+    "tabs": {
+      "main": "Overview",
+      "notes": "Notes",
+      "activity": "Activity",
+      "imports": "Imports"
+    },
+    "notes": {
+      "kind": "Note kind",
+      "placeholder": "Note text…",
+      "add": "Add note",
+      "empty": "No notes yet.",
+      "resolved": "Resolved by {{by}}",
+      "resolve": "Resolve",
+      "reopen": "Reopen",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this note? The action is recorded in the activity log."
+    },
+    "noteKinds": {
+      "internal": "Internal",
+      "client": "Client",
+      "blocker": "Blocker",
+      "qa": "Quality control"
+    },
+    "activity": {
+      "empty": "No events yet.",
+      "order_created": "Order created",
+      "order_updated": "Order updated",
+      "project_attached": "Project attached",
+      "project_detached": "Project detached",
+      "lifecycle_changed": "Status changed",
+      "stage_started": "Stage started",
+      "stage_completed": "Stage completed",
+      "stage_blocked": "Stage blocked",
+      "stage_unblocked": "Stage unblocked",
+      "note_added": "Note added",
+      "note_resolved": "Note resolved",
+      "note_deleted": "Note deleted",
+      "import_uploaded": "Translation uploaded",
+      "import_applied": "Import applied",
+      "import_failed": "Import failed",
+      "import_discarded": "Import discarded",
+      "pipeline_succeeded": "Pipeline finished",
+      "pipeline_failed": "Pipeline failed"
+    },
+    "importStates": {
+      "ready": "Ready to apply",
+      "needs_attention": "Needs review",
+      "failed": "Failed",
+      "applied": "Applied"
+    },
+    "imports": {
+      "empty": "No imports yet.",
+      "counts": "accepted: {{accepted}} · errors: {{errors}} · warnings: {{warnings}}",
+      "report": "Report CSV",
+      "reportSaved": "Report saved"
+    },
+    "import": {
+      "title": "Import preview",
+      "row": "Row {{row}}",
+      "errorsCount": "Errors: {{count}}",
+      "warningsCount": "Warnings: {{count}}",
+      "acceptedCount": "Will apply: {{accepted}} of {{total}}",
+      "errorsHeading": "Blocking errors ({{count}})",
+      "warningsHeading": "Warnings ({{count}})",
+      "page": "Page",
+      "segment": "Segment",
+      "source": "Source",
+      "translation": "Translation",
+      "change": "Change",
+      "apply": "Apply import",
+      "discard": "Discard",
+      "close": "Close",
+      "applyHint": "Fix the errors in the file and upload it again."
+    },
+    "importChanges": {
+      "new": "New",
+      "changed": "Changed",
+      "unchanged": "Unchanged"
+    },
+    "duplicate": {
+      "title": "This file was already uploaded",
+      "description": "The same file was already imported into this order. No duplicate was created.",
+      "ok": "Got it"
+    },
+    "attach": {
+      "title": "Attach project",
+      "description": "An order is edited inside one Koharu project.",
+      "noProjects": "No projects yet — create a new one below.",
+      "newPlaceholder": "New project name",
+      "createAndAttach": "Create and attach"
+    }
   },
   "outputPicker": {
     "instructions": "Translation instructions",
     "instructionsPlaceholder": "Optional guidance for tone, names, and formatting.",
+    "sourceLanguage": "Source language",
     "targetLanguage": "Target language",
-    "title": "Translation output"
+    "title": "Translation output",
+    "validators": "Automatic validators"
+  },
+  "repairPresets": {
+    "delete": "Delete preset",
+    "label": "Preset",
+    "name": "Preset name",
+    "placeholder": "Choose a preset",
+    "rename": "Rename",
+    "save": "Save as preset"
+  },
+  "systemPrompt": {
+    "editBuiltIn": "Edit built-in prompt",
+    "hint": "Empty uses the built-in prompt. {source} and {target} insert the run's languages.",
+    "label": "System prompt",
+    "profile": "Content profile",
+    "profiles": {
+      "comic": "Comic",
+      "hentai": "Hentai",
+      "manga": "Manga"
+    }
+  },
+  "translationValidators": {
+    "add": "Add rule",
+    "chinese": "Chinese Han characters",
+    "customRule": "Custom validation rule",
+    "japanese": "Japanese kana",
+    "korean": "Korean characters",
+    "latin": "Latin letters",
+    "name": "Rule name",
+    "namePlaceholder": "e.g. No Latin letters",
+    "pattern": "Regular expression",
+    "patternPlaceholder": "[A-Za-z]",
+    "presets": "Block script presets",
+    "remove": "Remove rule"
   },
   "phase": {
+    "censor_detection": "Censor detection",
+    "decensor": "Decensor",
     "detection": "Detection",
     "inpainting": "Inpainting",
     "ocr": "OCR",
     "translation": "Translation"
   },
   "phaseDescription": {
+    "censor_detection": "Find obscured areas and save their mask.",
+    "decensor": "Reconstruct censored areas with the selected model.",
     "detection": "Locate text on the page.",
     "inpainting": "Rebuild the artwork behind removed text.",
     "ocr": "Read the text inside each region.",
@@ -321,6 +658,7 @@
     "atlas-cloud": "Atlas-hosted language models.",
     "caiyun": "Caiyun translation API.",
     "claude": "Anthropic Claude models.",
+    "cursor": "Cursor Cloud Agent models.",
     "deepl": "DeepL translation API.",
     "deepseek": "DeepSeek language models.",
     "gemini": "Google Gemini models.",
@@ -335,14 +673,16 @@
   },
   "resources": {
     "cpu": "CPU",
+    "gpu": "GPU",
+    "gpuUtilization": "GPU utilization",
     "processUtilization": "Process utilization",
     "ram": "RAM",
-    "summary": "RAM {{ram}}%, CPU {{cpu}}%",
+    "summary": "RAM {{ram}}, CPU {{cpu}}",
+    "summaryGpu": "RAM {{ram}}, CPU {{cpu}}, GPU {{gpu}}",
     "title": "System resources",
-    "tooltip": "RAM {{ramUsed}} of {{ramTotal}} · CPU {{cpu}}%",
+    "unavailable": "Unavailable",
     "usedOfTotal": "{{used}} of {{total}} used",
-    "vramUnavailable": "Unavailable",
-    "vramValue": "{{value}} VRAM"
+    "vram": "VRAM"
   },
   "settings": {
     "appearance": {
@@ -372,6 +712,19 @@
       "temperature": "Temperature",
       "reasoning": "Reasoning",
       "reasoningDescription": "Use model reasoning during translation.",
+      "reasoningLevel": "Reasoning level",
+      "reasoningLevelDescription": "How deeply the model reasons while reasoning is on. Default keeps the provider's own setting.",
+      "reasoningLevelUnsupported": "The selected model does not offer this level. Choose another level or Default.",
+      "reasoningLevels": {
+        "high": "High",
+        "low": "Low",
+        "max": "Max",
+        "medium": "Medium",
+        "minimal": "Minimal",
+        "xhigh": "Extra high"
+      },
+      "reasoningOnOffOnly": "This model has no reasoning levels. Reasoning can only be turned on or off.",
+      "reasoningUnsupported": "This model does not support reasoning.",
       "title": "Generation",
       "topK": "Top K",
       "topP": "Top P",
@@ -380,14 +733,44 @@
     },
     "loading": "Loading preferences…",
     "pipeline": {
+      "censorDetection": {
+        "description": "Find obscured areas and save their mask.",
+        "title": "Censor detection"
+      },
       "description": "Choose the models and options used to process each page.",
       "modelLabel": "{{stage}} model",
       "options": {
         "bubbleThreshold": "Bubble threshold",
+        "guidanceScale": "Guidance scale",
+        "inferenceSteps": "Inference steps",
+        "lineartStrength": "Line-art strength",
+        "loraPath": "LoRA file (optional)",
+        "loraStrength": "LoRA strength (0 = off)",
         "negativePrompt": "Negative prompt",
         "panelThreshold": "Panel threshold",
         "prompt": "Prompt",
-        "textThreshold": "Text threshold"
+        "textThreshold": "Text threshold",
+        "endpoint": "ComfyUI endpoint",
+        "checkpoint": "Checkpoint",
+        "controlnet": "ControlNet",
+        "positivePrompt": "Positive prompt",
+        "seed": "Seed",
+        "denoise": "Denoise",
+        "automaticCensorMask": "Automatic censor mask",
+        "detectMosaic": "Detect mosaics",
+        "censorThreshold": "Censor threshold",
+        "censorMaskGrow": "Censor mask grow",
+        "censorMaskBlur": "Censor mask blur",
+        "maskPadding": "Mask padding",
+        "maskGrow": "Mask grow",
+        "maskBlur": "Mask blur",
+        "colorMatchStrength": "Color match",
+        "timeoutSeconds": "Timeout (seconds)"
+      },
+      "profiles": {
+        "flux2-klein-9b-uncensored": "Distilled 9B Q8 with uncensored Q4_K_M text encoder",
+        "diffusioncreampy-animagine-xl-4": "Local ComfyUI SDXL inpainting tuned for anime and manga artwork with Animagine XL 4.0 Opt.",
+        "diffusioncreampy-illustrious-xl-2": "Local ComfyUI SDXL inpainting tuned for detailed illustrations with Illustrious XL 2.0."
       },
       "processing": "Processing",
       "stages": {
@@ -395,9 +778,21 @@
           "description": "Find text, speech bubbles, and panels.",
           "title": "Detection"
         },
-        "inpainting": {
-          "description": "Rebuild artwork beneath removed text.",
-          "title": "Inpainting"
+        "decensor": {
+          "description": "Reconstruct censored areas with the selected model.",
+          "title": "Decensor"
+        },
+        "artwork": {
+          "description": "Rebuild the artwork beneath lettering and sound effects outside speech bubbles.",
+          "title": "Artwork inpainting"
+        },
+        "manual": {
+          "description": "Paint a mask and repair it with FLUX using an independent prompt and settings.",
+          "title": "Manual inpainting (FLUX)"
+        },
+        "bubbles": {
+          "description": "Quickly clear lettering inside speech bubbles.",
+          "title": "Bubble inpainting"
         },
         "ocr": {
           "description": "Read the source text inside detected regions.",
@@ -429,6 +824,7 @@
       "providers": "Providers",
       "shortcuts": "Shortcuts",
       "translation": "Translation",
+      "usage": "Token usage",
       "typesetting": "Typesetting"
     },
     "title": "Settings",
@@ -444,6 +840,11 @@
       "quantization": "Quantization",
       "quantizationDescription": "Smaller formats use less memory, usually with a quality tradeoff.",
       "selectQuantization": "Select a quantization",
+      "sourceLanguageDescription": "Choose the language the source text is written in.",
+      "systemPrompt": "System prompt",
+      "systemPromptDescription": "Choose the profile for editor runs. Each profile keeps its own prompt; Telegram orders use their own profile.",
+      "validators": "Automatic validators",
+      "validatorsDescription": "Reject matching translation text and regenerate once with corrective feedback.",
       "targetLanguageDescription": "Choose the language to translate text into.",
       "title": "Translation",
       "translationModel": "Translation model",
@@ -499,38 +900,110 @@
     "brushSizePixels": "Brush size: {{size}} pixels",
     "brushSizeShort": "{{size}} px",
     "color_picker": "Color picker",
+    "decensor": "Decensor",
     "decreaseBrushSize": "Decrease brush size",
     "draw": "Brush",
     "eraser": "Eraser",
     "increaseBrushSize": "Increase brush size",
     "pan": "Pan",
-    "remove": "Remove",
+    "fast": "Fast",
+    "inpainting": "Inpainting (FLUX)",
+    "applyRepairSettings": "Apply settings",
+    "repairSettingsHint": "Apply settings before drawing. Accepted masks keep their original settings.",
     "select": "Select",
     "text": "Text"
   },
-  "updater": {
-    "available": {
-      "description": "Koharu <strong>{{version}}</strong> is ready to install",
-      "title": "Update available"
-    },
-    "close": "Close",
-    "downloading": {
-      "subtitle": "Koharu {{version}}",
-      "title": "Downloading update…"
-    },
-    "error": {
-      "description": "Something went wrong while updating",
-      "title": "Update failed"
-    },
-    "later": "Later",
-    "noNotes": "No release notes provided.",
-    "retry": "Retry",
-    "update": "Update"
+  "usage": {
+    "title": "Token usage",
+    "description": "A local request-by-request ledger for translation and agent inference.",
+    "privacy": "Prompts, images, responses, credentials and reasoning text are never saved in this log.",
+    "unknownNotice": "A dash means the provider did not report the value. Costs are provider-reported, not estimated. Reasoning and cache counters are breakdowns, not extra tokens to add to the total.",
+    "provider": "Provider",
+    "model": "Model",
+    "from": "From",
+    "to": "Through",
+    "apply": "Apply filters",
+    "refresh": "Refresh",
+    "requests": "Requests",
+    "input": "Input tokens",
+    "output": "Output tokens",
+    "total": "Total tokens",
+    "cost": "Reported cost",
+    "missingUsage": "Requests without reported token usage: {{count}}",
+    "missingCost": "Requests without reported cost: {{count}}",
+    "coverage": "Reported for {{known}} of {{total}} requests",
+    "empty": "No inference requests match these filters.",
+    "failed": "Could not read the local usage journal.",
+    "time": "Time",
+    "operation": "Operation",
+    "status": "Outcome",
+    "latency": "Duration",
+    "details": "Request details",
+    "detailsFor": "Details for request {{id}}",
+    "previous": "Newer",
+    "next": "Older",
+    "page": "Page {{number}}",
+    "identity": "Request and context",
+    "tokens": "Token breakdown",
+    "parameters": "Generation parameters",
+    "invalidDates": "The start date must not be later than the end date.",
+    "storage": "Local journal: {{path}}",
+    "fields": {
+      "provider": "Provider",
+      "requested_model": "Requested model",
+      "resolved_model": "Reported model",
+      "request_id": "Provider request ID",
+      "response_id": "Provider response ID",
+      "attempt": "Attempt",
+      "http_status": "HTTP status",
+      "error_kind": "Error classification",
+      "project_id": "Project",
+      "page_id": "Page",
+      "job_id": "Job / run",
+      "source_language": "Source language",
+      "target_language": "Target language",
+      "segment_count": "Segments",
+      "image_count": "Images",
+      "context_count": "Context entries",
+      "reasoning": "Reasoning enabled",
+      "reasoning_effort": "Reasoning level",
+      "reasoning_tokens": "Reasoning tokens",
+      "cache_read_tokens": "Cached input tokens",
+      "cache_write_tokens": "Cache write tokens",
+      "image_input_tokens": "Image input tokens",
+      "image_output_tokens": "Image output tokens",
+      "audio_input_tokens": "Audio input tokens",
+      "audio_output_tokens": "Audio output tokens",
+      "cost_source": "Cost source"
+    }
   },
   "window": {
     "close": "Close",
     "maximize": "Maximize",
     "minimize": "Minimize",
     "restore": "Restore"
+  },
+  "galleryImport": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "cookies": "exhentai cookies",
+    "cookiesHint": "Paste a cookie header with ipb_member_id, ipb_pass_hash and igneous. It is stored in the system keychain and never shown again.",
+    "cookiesOptional": "(only for exhentai)",
+    "description": "Download several galleries into one new project, in the order given. e-hentai, exhentai and nhentai links are supported.",
+    "downloading": "Downloading pages…",
+    "error": "The import failed. Check the links and try again.",
+    "galleries": "Galleries",
+    "import": "Import",
+    "importing": "Importing…",
+    "importingPages": "Creating the project…",
+    "inspecting": "Reading gallery information…",
+    "name": "Project name",
+    "nameOptional": "(optional)",
+    "pages": "Pages",
+    "progress": "Import progress",
+    "success": "Project created",
+    "title": "Import galleries",
+    "urls": "Gallery links (one per line, up to 20)",
+    "urlsPlaceholder": "https://e-hentai.org/g/123456/abcdef0123/\nhttps://nhentai.net/g/654321/"
   }
 }

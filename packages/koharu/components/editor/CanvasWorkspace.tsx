@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useColorSampling } from '@/components/controls/ColorSampling'
@@ -10,6 +11,7 @@ import { StatusBar } from '@/components/editor/StatusBar'
 import { ToolBar } from '@/components/editor/ToolBar'
 import { useCanvas } from '@/components/editor/useCanvas'
 import { call } from '@/lib/backend'
+import { copySelection, pasteLayers, pasteText, selectionText } from '@/lib/clipboard'
 import { expandLayerSelection } from '@/lib/document'
 import {
   controlFrame,
@@ -30,8 +32,11 @@ import {
   usePage,
   usePages,
 } from '@/lib/queries'
+import { useProject } from '@/lib/queries'
 import {
   isBrushTool,
+  canvasTools,
+  isCleanupTool,
   MAX_BRUSH_DIAMETER,
   MIN_BRUSH_DIAMETER,
   receiveError,
@@ -39,7 +44,13 @@ import {
   type CanvasTool,
 } from '@/lib/store'
 import { prefetchCanvasPages, workspaceColor, type CanvasColor } from '@koharu/bridge/canvas'
-import { commands, type Frame, type Point, type TransformFrame } from '@koharu/bridge/protocol'
+import {
+  commands,
+  type CleanupTarget,
+  type Frame,
+  type Point,
+  type TransformFrame,
+} from '@koharu/bridge/protocol'
 import { Button } from '@koharu/ui/components/button'
 
 const BRUSH_DIAMETER_STEP = 4
@@ -50,7 +61,9 @@ const canvasCursors = {
   draw: 'none',
   eraser: 'none',
   color_picker: 'crosshair',
-  remove: 'none',
+  fast: 'none',
+  inpainting: 'none',
+  decensor: 'none',
   pan: 'grab',
 } as const satisfies Record<CanvasTool, string | undefined>
 
@@ -60,15 +73,23 @@ type Gesture =
   | { kind: 'text'; pointer: number; start: Point; frame: Frame }
   | StrokeGesture
 
-interface StrokeGesture {
-  kind: 'paint' | 'erase' | 'inpaint'
+interface StrokeBase {
   pointer: number
   revision: number
-  layer: string | null
   points: Point[]
   diameter: number
-  color?: CanvasColor
 }
+
+type StrokeGesture =
+  | (StrokeBase & { kind: 'paint'; layer: string | null; color: CanvasColor })
+  | (StrokeBase & { kind: 'erase'; layer: string })
+  // The target is captured at pointer-down; a later tool change must not redirect the commit.
+  | (StrokeBase & {
+      kind: 'inpaint'
+      target: CleanupTarget
+      page: string
+      session: string
+    })
 
 interface CanvasView {
   zoom: number
@@ -93,12 +114,17 @@ export function CanvasWorkspace() {
   const commitPending = useRef(false)
   const commandQueue = useRef<Promise<void>>(Promise.resolve())
   const [previews, setPreviews] = useState<Record<string, Frame>>({})
+  const [showCensorMask, setShowCensorMask] = useState(false)
+  const [censorMaskUrl, setCensorMaskUrl] = useState<{ asset: string; url: string } | null>(null)
   const [draft, setDraft] = useState<Frame | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
   const [cursor, setCursor] = useState<Point | null>(null)
   const colorSampling = useColorSampling()
 
   const page = usePage().data
+  const project = useProject().data
+  const projectSession = project?.session
+  const pendingMasks = useKoharuStore((state) => state.pendingMasks)
   const pages = usePages().data
   const camera = useKoharuStore((state) => state.camera)
   const canvasPage = useKoharuStore((state) => state.canvasPage)
@@ -118,6 +144,32 @@ export function CanvasWorkspace() {
   const canvas = canvasState.canvas
   const pageId = page?.id
   const pageWidth = canvasSize[0] || page?.size.width
+  const censorMaskAsset = page?.censor_mask_asset
+  const maskPaths = useMemo(
+    () =>
+      pendingMasks
+        .filter((mask) => mask.page === pageId)
+        .map((mask) => ({
+          ...mask,
+          path:
+            mask.points
+              .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`)
+              .join(' ') + ` l0,0`,
+        })),
+    [pageId, pendingMasks],
+  )
+  const censorMask = useQuery({
+    queryKey: ['censor-mask', censorMaskAsset],
+    queryFn: async () => new Uint8Array(await call(commands.getCensorMask, page!.id)),
+    enabled: showCensorMask && Boolean(censorMaskAsset),
+  }).data
+
+  useEffect(() => {
+    if (!censorMask || !censorMaskAsset) return
+    const url = URL.createObjectURL(new Blob([censorMask.buffer], { type: 'image/png' }))
+    setCensorMaskUrl({ asset: censorMaskAsset, url })
+    return () => URL.revokeObjectURL(url)
+  }, [censorMask, censorMaskAsset])
   const pageHeight = canvasSize[1] || page?.size.height
   const activeRaster =
     selected.length === 1
@@ -309,7 +361,7 @@ export function CanvasWorkspace() {
     fitCanvas()
   }, [fitCanvas, fitCanvasRequest])
 
-  useEffect(() => cancelGesture, [cancelGesture, canvasGeneration, canvasRevision, page?.id, tool])
+  useEffect(() => cancelGesture, [cancelGesture, canvasPage, page?.id, projectSession, tool])
 
   useEffect(() => {
     const editable = (target: EventTarget | null) =>
@@ -322,6 +374,7 @@ export function CanvasWorkspace() {
         event.preventDefault()
         return
       }
+      const command = event.ctrlKey || event.metaKey
       if (editable(event.target)) return
       const state = useKoharuStore.getState()
       if (event.code === 'Space') {
@@ -329,12 +382,19 @@ export function CanvasWorkspace() {
         event.preventDefault()
         return
       }
-      const command = event.ctrlKey || event.metaKey
       if (command && event.key.toLowerCase() === 'z') {
         event.preventDefault()
-        void call(event.shiftKey ? commands.redo : commands.undo)
+        void (event.shiftKey ? commands.redo() : commands.undo())
           .then(() => refresh(projectKey, pagesKey, pageKey))
-          .catch(() => undefined)
+          .catch((error: unknown) => receiveError(errorMessage(error)))
+        return
+      }
+      if (command && event.key.toLowerCase() === 'y') {
+        event.preventDefault()
+        void commands
+          .redo()
+          .then(() => refresh(projectKey, pagesKey, pageKey))
+          .catch((error: unknown) => receiveError(errorMessage(error)))
         return
       }
       if (command && event.key.toLowerCase() === 'a' && page) {
@@ -342,6 +402,9 @@ export function CanvasWorkspace() {
         selectLayers(page.layers.filter(selectableLayer).map((layer) => layer.id))
         return
       }
+      // Copy, cut and paste arrive as clipboard events below; the letters
+      // must not also select their single-key tools (V is Select).
+      if (command && ['c', 'x', 'v'].includes(event.key.toLowerCase())) return
       if (
         (event.key === 'Delete' || event.key === 'Backspace') &&
         state.selectedLayers.length > 0
@@ -362,9 +425,7 @@ export function CanvasWorkspace() {
         selectLayers([])
         return
       }
-      const next = (
-        ['select', 'text', 'draw', 'eraser', 'color_picker', 'remove', 'pan'] as const
-      ).find((action) => state.shortcuts[action] === event.key.toLowerCase())
+      const next = canvasTools.find((action) => state.shortcuts[action] === event.key.toLowerCase())
       if (next) setTool(next)
     }
 
@@ -377,13 +438,49 @@ export function CanvasWorkspace() {
       cancelGesture()
     }
 
+    // External text lands at the centre of the visible canvas.
+    const viewCenter = () => {
+      const rect = surface.current!.getBoundingClientRect()
+      return pagePoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+        rect,
+        useKoharuStore.getState().camera,
+      )
+    }
+    const copy = (event: ClipboardEvent) => {
+      const layers = useKoharuStore.getState().selectedLayers
+      if (editable(event.target) || layers.length === 0) return
+      event.preventDefault()
+      const text = selectionText(page, layers)
+      event.clipboardData?.setData('text/plain', text)
+      void copySelection(event.type === 'cut', text).catch(() => undefined)
+    }
+    const paste = (event: ClipboardEvent) => {
+      if (editable(event.target) || !page) return
+      event.preventDefault()
+      const text = event.clipboardData?.getData('text/plain') ?? ''
+      const copied = useKoharuStore.getState().layerClipboard
+      if (copied && (text === '' || text === copied.text)) {
+        void pasteLayers(page.id).catch(() => undefined)
+      } else if (text.trim()) {
+        void pasteText(text, viewCenter()).catch(() => undefined)
+      }
+    }
+
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
     window.addEventListener('blur', blur)
+    window.addEventListener('copy', copy)
+    window.addEventListener('cut', copy)
+    window.addEventListener('paste', paste)
     return () => {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
       window.removeEventListener('blur', blur)
+      window.removeEventListener('copy', copy)
+      window.removeEventListener('cut', copy)
+      window.removeEventListener('paste', paste)
     }
   }, [cancelGesture, colorSampling, page, requestCanvasFit, selectLayers, setTool])
 
@@ -490,33 +587,59 @@ export function CanvasWorkspace() {
         receiveError(errorMessage(error))
         return
       }
+      if (current.kind === 'inpaint') {
+        const store = useKoharuStore.getState()
+        const id = store.addPendingMask({
+          page: current.page,
+          target: current.target,
+          points: current.points,
+          diameter: current.diameter,
+        })
+        // Submit immediately. Native admission orders masks and captures the
+        // settings before preparation; waiting for earlier jobs would not.
+        void commands
+          .commitInpaint(
+            current.page,
+            current.revision,
+            current.points,
+            current.diameter,
+            current.target,
+          )
+          .then((job) => {
+            if (job) store.bindPendingMask(id, job)
+            else store.removePendingMasks([id])
+          })
+          .catch((error: unknown) => {
+            store.removePendingMasks([id])
+            if (queryClient.getQueryData<typeof project>(projectKey)?.session === current.session) {
+              receiveError(errorMessage(error))
+            }
+          })
+        return
+      }
       const operation =
         current.kind === 'paint'
           ? enqueue(() =>
               call(commands.commitPaint, current.revision, current.layer, current.points, {
                 diameter: current.diameter,
-                color: current.color!,
+                color: current.color,
               }),
             ).then((result) => {
               selectLayers([result.layer])
               return refresh(projectKey, pagesKey, pageKey)
             })
-          : current.kind === 'erase'
-            ? enqueue(() =>
-                call(
-                  commands.commitErase,
-                  current.revision,
-                  current.layer!,
-                  current.points,
-                  current.diameter,
-                ),
-              ).then((result) => {
-                selectLayers([result.layer])
-                return refresh(projectKey, pagesKey, pageKey)
-              })
-            : enqueue(() =>
-                call(commands.commitInpaint, current.revision, current.points, current.diameter),
-              )
+          : enqueue(() =>
+              call(
+                commands.commitErase,
+                current.revision,
+                current.layer,
+                current.points,
+                current.diameter,
+              ),
+            ).then((result) => {
+              selectLayers([result.layer])
+              return refresh(projectKey, pagesKey, pageKey)
+            })
       commitPending.current = true
       void operation
         .catch(() => canvas?.cancelStroke())
@@ -543,7 +666,9 @@ export function CanvasWorkspace() {
             if (
               !page ||
               !canvas ||
-              canvasState.status !== 'ready' ||
+              canvasPage !== page.id ||
+              (canvasState.status !== 'ready' &&
+                !(canvasState.status === 'switching' && canvasState.hasFrame)) ||
               canvasRevision === null ||
               commitPending.current ||
               event.button > 1
@@ -637,15 +762,17 @@ export function CanvasWorkspace() {
                 gesture.current = null
                 receiveError(errorMessage(error))
               }
-            } else if (tool === 'remove') {
+            } else if (isCleanupTool(tool) && projectSession) {
               strokeUpdates.clear()
               gesture.current = {
                 kind: 'inpaint',
                 pointer: event.pointerId,
+                page: page.id,
+                session: projectSession,
                 revision: canvasRevision,
-                layer: null,
                 points: [point],
                 diameter: brush.diameter,
+                target: tool,
               }
               try {
                 canvas.beginStroke({
@@ -748,6 +875,50 @@ export function CanvasWorkspace() {
             aria-hidden
             className='pointer-events-none absolute inset-0 block size-full'
           />
+          {maskPaths.length > 0 && (
+            <svg
+              aria-hidden
+              data-testid='pending-cleanup-masks'
+              className='pointer-events-none absolute inset-0 size-full overflow-hidden text-violet-500'
+            >
+              <g
+                transform={`translate(${camera.translation[0] / window.devicePixelRatio},${camera.translation[1] / window.devicePixelRatio}) scale(${camera.zoom / window.devicePixelRatio})`}
+                fill='none'
+                stroke='currentColor'
+                strokeOpacity={0.45}
+                strokeLinecap='round'
+                strokeLinejoin='round'
+              >
+                {maskPaths.map((mask) => (
+                  <path
+                    key={mask.id}
+                    data-job={mask.job ?? undefined}
+                    d={mask.path}
+                    strokeWidth={mask.diameter}
+                  />
+                ))}
+              </g>
+            </svg>
+          )}
+          {page &&
+            showCensorMask &&
+            censorMaskUrl &&
+            censorMaskUrl.asset === censorMaskAsset && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={censorMaskUrl.url}
+                alt=''
+                aria-hidden
+                draggable={false}
+                className='pointer-events-none absolute max-w-none'
+                style={{
+                  left: camera.translation[0] / window.devicePixelRatio,
+                  top: camera.translation[1] / window.devicePixelRatio,
+                  width: (page.size.width * camera.zoom) / window.devicePixelRatio,
+                  height: (page.size.height * camera.zoom) / window.devicePixelRatio,
+                }}
+              />
+            )}
           {page && canvasState.status === 'ready' && (
             <CanvasOverlay
               page={page}
@@ -764,6 +935,20 @@ export function CanvasWorkspace() {
               onTransformFrame={updateTransform}
               onTransformEnd={finishTransform}
             />
+          )}
+          {page && (
+            <Button
+              data-canvas-control
+              size='sm'
+              variant={showCensorMask ? 'secondary' : 'outline'}
+              className='absolute top-3 right-3 z-20 h-7 text-[11px]'
+              disabled={!censorMaskAsset}
+              aria-pressed={showCensorMask}
+              title={!censorMaskAsset ? t('canvas.noCensorMask') : undefined}
+              onClick={() => setShowCensorMask((visible) => !visible)}
+            >
+              {t('canvas.censorMask')}
+            </Button>
           )}
           {page && canvasState.status === 'error' && (
             <div

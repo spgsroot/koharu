@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  ChartNoAxesCombined,
   Cpu,
   KeyRound,
   Keyboard,
@@ -25,6 +26,7 @@ import {
 import { ProviderPreferences } from '@/components/preferences/ProviderPreferences'
 import { TranslationPreferences } from '@/components/preferences/TranslationPreferences'
 import { TypesettingPreferences } from '@/components/preferences/TypesettingPreferences'
+import { UsagePreferences } from '@/components/preferences/UsagePreferences'
 import { refreshPreferences, refreshTranslationModels, savePreferences } from '@/lib/backend'
 import { supportedLanguages } from '@/lib/i18n'
 import { receivePreferences, useKoharuStore, type ShortcutAction } from '@/lib/store'
@@ -50,6 +52,7 @@ const tabs = [
   ['pipeline', Cpu],
   ['providers', KeyRound],
   ['translation', Languages],
+  ['usage', ChartNoAxesCombined],
   ['typesetting', Type],
   ['shortcuts', Keyboard],
 ] as const
@@ -217,6 +220,7 @@ export function SettingsPage() {
                   modelChoices={translationModels}
                   providers={providers?.entries ?? []}
                   languages={preferences?.languages ?? []}
+                  defaultPrompts={preferences?.default_system_prompts ?? null}
                   onChange={(translation) =>
                     setPipeline((current) => (current ? { ...current, translation } : current))
                   }
@@ -231,6 +235,7 @@ export function SettingsPage() {
                 <LoadingPreferences />
               ))}
             {tab === 'shortcuts' && <ShortcutPreferences />}
+            {tab === 'usage' && <UsagePreferences />}
           </div>
         </ScrollArea>
       </main>
@@ -308,7 +313,9 @@ function ShortcutPreferences() {
     'draw',
     'eraser',
     'color_picker',
-    'remove',
+    'fast',
+    'inpainting',
+    'decensor',
     'pan',
     'fit',
   ]
@@ -345,7 +352,9 @@ const shortcutKeys: Record<ShortcutAction, string> = {
   draw: 'tools.draw',
   eraser: 'tools.eraser',
   color_picker: 'tools.color_picker',
-  remove: 'tools.remove',
+  fast: 'tools.fast',
+  inpainting: 'tools.inpainting',
+  decensor: 'tools.decensor',
   pan: 'tools.pan',
   fit: 'canvas.fit',
 }
