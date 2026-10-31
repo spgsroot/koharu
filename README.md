@@ -28,10 +28,6 @@ Koharu introduces a local-first workflow for manga translation, utilizing the po
 
 ![Fork editor](docs/assets/fork/editor.webp)
 
----
-
-![screenshot](docs/screenshot.png)
-
 > [!NOTE]
 > Join our [Discord server](https://discord.gg/mHvHkxGnUY) for support and discussion.
 
