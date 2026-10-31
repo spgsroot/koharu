@@ -20,10 +20,11 @@ pub(crate) struct Turn {
     pub(crate) text: String,
 }
 
-pub(super) async fn read<F>(
+pub(crate) async fn read<F>(
     response: reqwest::Response,
     control: &Control,
     mut publish: F,
+    usage: &mut crate::usage::Inference,
 ) -> Result<Turn>
 where
     F: FnMut(Delta),
@@ -45,20 +46,35 @@ where
         let Some(event) = event else {
             break;
         };
-        let event = event.map_err(|error| anyhow!("invalid Codex event stream: {error}"))?;
+        let event = event.map_err(|error| {
+            usage.entry.outcome = koharu_usage::UsageOutcome::NetworkError;
+            anyhow!("invalid Codex event stream: {error}")
+        })?;
         bytes = bytes.saturating_add(event.data.len());
         if bytes > MAX_STREAM_BYTES {
+            usage.entry.outcome = koharu_usage::UsageOutcome::DecodeError;
             bail!("Codex response stream exceeded {MAX_STREAM_BYTES} bytes");
         }
         if event.data == "[DONE]" || event.data.trim().is_empty() {
             continue;
         }
-        let value: Value =
-            serde_json::from_str(&event.data).context("invalid JSON in Codex response stream")?;
+        let value: Value = serde_json::from_str(&event.data)
+            .inspect_err(|_| {
+                usage.entry.outcome = koharu_usage::UsageOutcome::DecodeError;
+            })
+            .context("invalid JSON in Codex response stream")?;
         let kind = value
             .get("type")
             .and_then(Value::as_str)
             .unwrap_or_default();
+        if let Some(response) = value.get("response") {
+            usage
+                .entry
+                .report(koharu_usage::wire::openai_responses(response));
+            if response.get("error").is_some_and(Value::is_object) {
+                usage.entry.error_code = koharu_usage::wire::error_code(response);
+            }
+        }
         match kind {
             "response.output_text.delta" => {
                 if let Some(delta) = value.get("delta").and_then(Value::as_str) {
@@ -92,9 +108,14 @@ where
                 bail!("Codex response was incomplete: {}", provider_error(&value));
             }
             "response.failed" => {
+                usage.entry.outcome = koharu_usage::UsageOutcome::ProviderError;
                 bail!("Codex response failed: {}", provider_error(&value));
             }
-            "error" => bail!("Codex returned an error: {}", provider_error(&value)),
+            "error" => {
+                usage.entry.outcome = koharu_usage::UsageOutcome::ProviderError;
+                usage.entry.error_code = koharu_usage::wire::error_code(&value);
+                bail!("Codex returned an error: {}", provider_error(&value));
+            }
             _ => {}
         }
     }

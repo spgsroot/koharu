@@ -4,6 +4,8 @@ use specta::Type;
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Type)]
 pub struct Config {
+    #[serde(default)]
+    pub provider: AgentProvider,
     pub model: Option<String>,
     pub reasoning: Reasoning,
 }
@@ -11,6 +13,35 @@ pub struct Config {
 impl Config {
     pub fn load() -> Result<koharu_config::Config<Self>> {
         koharu_config::load("agent")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentProvider {
+    #[default]
+    Codex,
+    Xai,
+    Kimi,
+}
+
+impl AgentProvider {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Codex => "codex",
+            Self::Xai => "grok",
+            Self::Kimi => "kimi",
+        }
+    }
+
+    #[must_use]
+    pub const fn display_name(self) -> &'static str {
+        match self {
+            Self::Codex => "Codex",
+            Self::Xai => "Grok",
+            Self::Kimi => "Kimi Code",
+        }
     }
 }
 

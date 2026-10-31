@@ -4,7 +4,7 @@ mod protocol;
 mod stream;
 mod token_store;
 
-use anyhow::{Result, bail};
+use anyhow::{Context as _, Result, bail};
 use reqwest::{Client, StatusCode};
 use serde::Serialize;
 use specta::Type;
@@ -14,7 +14,7 @@ use crate::{Control, Reasoning};
 pub use auth::Account;
 use auth::Auth;
 pub(crate) use protocol::{Request, function_output, message, project_context};
-pub(crate) use stream::{Delta, Turn};
+pub(crate) use stream::{Delta, Turn, read};
 
 const RESPONSES_URL: &str = "https://chatgpt.com/backend-api/codex/responses";
 
@@ -75,7 +75,7 @@ impl Codex {
 
     pub(crate) async fn respond<F>(
         &self,
-        request: &Request,
+        mut request: Request,
         control: &Control,
         publish: F,
     ) -> Result<Turn>
@@ -84,18 +84,45 @@ impl Codex {
     {
         control.ensure_running()?;
         let session = self.auth.session().await?;
-        let mut response = self.send(request, &session, control).await?;
+        let mut usage = crate::usage::Inference::new(
+            request
+                .usage
+                .take()
+                .context("agent request usage context is missing")?,
+        );
+        let mut response = usage.sent(self.send(&request, &session, control).await, control)?;
         if response.status() == StatusCode::UNAUTHORIZED {
+            usage.entry.outcome = koharu_usage::UsageOutcome::HttpError;
+            let retry = usage.retry_entry();
+            drop(usage);
             let session = self.auth.force_refresh().await?;
-            response = self.send(request, &session, control).await?;
+            usage = crate::usage::Inference::new(retry);
+            response = usage.sent(self.send(&request, &session, control).await, control)?;
         }
         if !response.status().is_success() {
+            usage.entry.outcome = if response.status() == StatusCode::TOO_MANY_REQUESTS {
+                koharu_usage::UsageOutcome::QuotaExceeded
+            } else {
+                koharu_usage::UsageOutcome::HttpError
+            };
             let status = response.status();
             let mut body = response.text().await.unwrap_or_default();
+            if let Ok(value) = serde_json::from_str(&body) {
+                usage
+                    .entry
+                    .report(koharu_usage::wire::openai_responses(&value));
+                usage.entry.error_code = koharu_usage::wire::error_code(&value);
+            }
             body.truncate(16 * 1024);
             bail!("Codex returned {status}: {body}");
         }
-        stream::read(response, control, publish).await
+        let result = stream::read(response, control, publish, &mut usage).await;
+        if result.is_ok() {
+            usage.entry.outcome = koharu_usage::UsageOutcome::Succeeded;
+        } else if control.is_cancelled() {
+            usage.entry.outcome = koharu_usage::UsageOutcome::Cancelled;
+        }
+        result
     }
 
     async fn send(

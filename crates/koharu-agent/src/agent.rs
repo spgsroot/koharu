@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    Codex, CodexModel, Config, Control, Host, ToolCall,
+    Account, AgentProvider, Codex, CodexModel, Config, Control, Host, Kimi, ToolCall, Xai,
     codex::{Delta, Request, function_output, message, project_context},
 };
 
@@ -102,6 +102,8 @@ pub struct RunResult {
 
 pub struct Agent<H> {
     codex: Codex,
+    xai: Xai,
+    kimi: Kimi,
     host: Arc<H>,
     config: koharu_config::Config<Config>,
     history: Mutex<Vec<Value>>,
@@ -112,9 +114,11 @@ impl<H> Agent<H>
 where
     H: Host,
 {
-    pub fn new(codex: Codex, host: H) -> Result<Self> {
+    pub fn new(host: H) -> Result<Self> {
         Ok(Self {
-            codex,
+            codex: Codex::new()?,
+            xai: Xai::new()?,
+            kimi: Kimi::new()?,
             host: Arc::new(host),
             config: Config::load()?,
             history: Mutex::new(Vec::new()),
@@ -122,8 +126,35 @@ where
         })
     }
 
-    pub fn codex(&self) -> &Codex {
-        &self.codex
+    pub fn account(&self) -> Result<Option<Account>> {
+        match self.provider()? {
+            AgentProvider::Codex => self.codex.account(),
+            AgentProvider::Xai => self.xai.account(),
+            AgentProvider::Kimi => self.kimi.account(),
+        }
+    }
+
+    pub async fn login_device<F>(&self, control: &Control, publish: F) -> Result<Account>
+    where
+        F: FnMut(crate::LoginEvent),
+    {
+        match self.provider()? {
+            AgentProvider::Codex => self.codex.login_device(control, publish).await,
+            AgentProvider::Xai => self.xai.login_device(control, publish).await,
+            AgentProvider::Kimi => self.kimi.login_device(control, publish).await,
+        }
+    }
+
+    pub fn logout(&self) -> Result<()> {
+        match self.provider()? {
+            AgentProvider::Codex => self.codex.logout(),
+            AgentProvider::Xai => self.xai.logout(),
+            AgentProvider::Kimi => self.kimi.logout(),
+        }
+    }
+
+    fn provider(&self) -> Result<AgentProvider> {
+        Ok(self.config.read()?.provider)
     }
 
     pub fn config(&self) -> Result<Config> {
@@ -131,11 +162,18 @@ where
     }
 
     pub async fn models(&self) -> Result<Vec<CodexModel>> {
-        self.codex.models().await
+        match self.provider()? {
+            AgentProvider::Codex => self.codex.models().await,
+            AgentProvider::Xai => self.xai.models().await,
+            AgentProvider::Kimi => self.kimi.models().await,
+        }
     }
 
-    pub fn save_config(&self, config: Config) -> Result<Config> {
+    pub fn save_config(&self, mut config: Config) -> Result<Config> {
         let mut current = self.config.write()?;
+        if current.provider != config.provider {
+            config.model = None;
+        }
         *current = config;
         let saved = current.clone();
         current.save()?;
@@ -185,17 +223,28 @@ where
         F: FnMut(Event),
     {
         control.ensure_running()?;
-        let context = self.host.context().await?;
+        let mut context = self.host.context().await?;
+        // Audit identity is local metadata, not extra input to the model.
+        let project_id = context
+            .as_object_mut()
+            .and_then(|object| object.remove("project_id"))
+            .and_then(|value| match value {
+                Value::String(id) => Some(id),
+                _ => None,
+            });
         let config = self.config()?;
-        let models = self.codex.models().await?;
+        let models = self.models().await?;
+        let provider = config.provider.display_name();
         let model = match config.model.as_deref() {
             Some(selected) => models
                 .iter()
                 .find(|model| model.id == selected)
-                .with_context(|| format!("configured Codex model {selected} is not available"))?,
+                .with_context(|| {
+                    format!("configured {provider} model {selected} is not available")
+                })?,
             None => models
                 .first()
-                .context("Codex returned no available model")?,
+                .with_context(|| format!("{provider} returned no available model"))?,
         };
         let reasoning = if model.reasoning.is_empty() || model.reasoning.contains(&config.reasoning)
         {
@@ -212,10 +261,23 @@ where
         let mut persisted = base;
         persisted.push(clean_user);
         let tools = self.host.tools();
+        let mut attempt = 0_u32;
         let session = run.to_string();
 
         loop {
             control.ensure_running()?;
+            let mut usage = koharu_usage::UsageRecord::new(
+                koharu_usage::UsageOperation::Agent,
+                config.provider.as_str(),
+            );
+            usage.attempt = attempt;
+            attempt = attempt.saturating_add(1);
+            usage.context.job_id = Some(session.clone());
+            usage.context.project_id = project_id.clone();
+            usage.context.page_id = context
+                .pointer("/project/active_page")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
             let request = Request::new(
                 model.id.clone(),
                 INSTRUCTIONS.to_owned(),
@@ -223,14 +285,44 @@ where
                 tools.clone(),
                 reasoning,
                 session.clone(),
+                usage,
             );
-            let turn = self
-                .codex
-                .respond(&request, control, |event| match event {
-                    Delta::Text(delta) => publish(Event::TextDelta { run, delta }),
-                    Delta::Reasoning(delta) => publish(Event::ReasoningDelta { run, delta }),
-                })
-                .await?;
+            let turn =
+                match config.provider {
+                    AgentProvider::Codex => {
+                        self.codex
+                            .respond(request, control, |event| match event {
+                                Delta::Text(delta) => publish(Event::TextDelta { run, delta }),
+                                Delta::Reasoning(delta) => {
+                                    publish(Event::ReasoningDelta { run, delta })
+                                }
+                            })
+                            .await?
+                    }
+                    AgentProvider::Xai => {
+                        self.xai
+                            .respond(request.without_reasoning_summary(), control, |event| {
+                                match event {
+                                    Delta::Text(delta) => publish(Event::TextDelta { run, delta }),
+                                    Delta::Reasoning(delta) => {
+                                        publish(Event::ReasoningDelta { run, delta })
+                                    }
+                                }
+                            })
+                            .await?
+                    }
+                    AgentProvider::Kimi => {
+                        self.kimi
+                            .respond(request, control, |event| match event {
+                                Delta::Text(delta) => publish(Event::TextDelta { run, delta }),
+                                Delta::Reasoning(delta) => {
+                                    publish(Event::ReasoningDelta { run, delta })
+                                }
+                            })
+                            .await?
+                    }
+                };
+
             input.extend(turn.output.iter().cloned());
             persisted.extend(turn.output.iter().cloned());
 

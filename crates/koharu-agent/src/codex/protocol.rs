@@ -1,3 +1,4 @@
+use koharu_usage::UsageRecord;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -5,10 +6,10 @@ use crate::{Reasoning, Tool};
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Request {
-    pub(super) model: String,
-    pub(super) instructions: String,
-    pub(super) input: Vec<Value>,
-    pub(super) tools: Vec<Tool>,
+    pub(crate) model: String,
+    pub(crate) instructions: String,
+    pub(crate) input: Vec<Value>,
+    pub(crate) tools: Vec<Tool>,
     pub(super) tool_choice: &'static str,
     pub(super) parallel_tool_calls: bool,
     pub(super) reasoning: ReasoningOptions,
@@ -17,11 +18,14 @@ pub(crate) struct Request {
     pub(super) stream: bool,
     pub(super) store: bool,
     pub(super) prompt_cache_key: String,
+    #[serde(skip)]
+    pub(crate) usage: Option<UsageRecord>,
 }
 
 #[derive(Debug, Serialize)]
 pub(super) struct ReasoningOptions {
     effort: &'static str,
+    #[serde(skip_serializing_if = "str::is_empty")]
     summary: &'static str,
 }
 
@@ -38,7 +42,24 @@ impl Request {
         tools: Vec<Tool>,
         reasoning: Reasoning,
         session: String,
+        mut usage: UsageRecord,
     ) -> Self {
+        usage.requested_model = Some(model.clone());
+        usage.settings.reasoning = Some(true);
+        usage.settings.reasoning_effort = Some(reasoning.as_str().to_owned());
+        usage.context.context_entries = input.len().try_into().ok();
+        usage.context.images = input
+            .iter()
+            .filter_map(|item| {
+                item.get("content")
+                    .or_else(|| item.get("output"))
+                    .and_then(Value::as_array)
+            })
+            .flatten()
+            .filter(|part| part.get("type").and_then(Value::as_str) == Some("input_image"))
+            .count()
+            .try_into()
+            .ok();
         Self {
             model,
             instructions,
@@ -55,7 +76,27 @@ impl Request {
             stream: true,
             store: false,
             prompt_cache_key: session,
+            usage: Some(usage),
         }
+    }
+
+    pub(crate) fn without_reasoning_summary(mut self) -> Self {
+        self.reasoning.summary = "";
+        self
+    }
+
+    pub(crate) fn cache_key(&self) -> &str {
+        &self.prompt_cache_key
+    }
+
+    pub(crate) fn reasoning_effort(&self) -> &str {
+        self.reasoning.effort
+    }
+
+    pub(crate) fn without_reasoning(mut self) -> Self {
+        self.reasoning.effort = "";
+        self.reasoning.summary = "";
+        self
     }
 }
 
