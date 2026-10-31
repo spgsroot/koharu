@@ -1,0 +1,29 @@
+[package]
+name = "koharu-orders"
+version.workspace = true
+edition.workspace = true
+description = "Administrative order management: SQLite store and translation exchange format."
+license.workspace = true
+authors.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+blake3 = { workspace = true }
+calamine = { workspace = true }
+csv = { workspace = true }
+encoding_rs = { workspace = true }
+parking_lot = { workspace = true }
+rusqlite = { workspace = true }
+rust_xlsxwriter = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+specta = { workspace = true, features = ["serde_json"] }
+thiserror = { workspace = true }
+time = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
