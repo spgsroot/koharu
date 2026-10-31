@@ -3,10 +3,11 @@
 
 use anyhow::{Context, anyhow};
 use koharu_secrets::ExposeSecret;
+use koharu_usage::UsageOutcome;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::send_json;
+use super::{Inference, send_inference};
 use crate::{Error, Language, Model, Provider, Result, TranslationRequest};
 
 const URL: &str = "https://api.interpreter.caiyunai.com/v1/translator";
@@ -33,8 +34,9 @@ pub(super) async fn translate(
         provider: "caiyun",
         language: request.target_language,
     })?;
-    let response: Response = send_json(
+    let response: Response = send_inference(
         "caiyun",
+        &Inference::service(request),
         client
             .post(URL)
             .header(
@@ -51,6 +53,10 @@ pub(super) async fn translate(
     )
     .await?;
     if response.rc != 0 {
+        // The HTTP exchange succeeded, but Caiyun reports the failure in the body.
+        if let Some(usage) = request.usage.as_ref() {
+            usage.reject(UsageOutcome::ProviderError);
+        }
         return Err(anyhow!(
             "Caiyun returned rc={}: {}",
             response.rc,

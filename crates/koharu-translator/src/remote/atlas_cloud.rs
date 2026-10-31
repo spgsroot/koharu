@@ -5,7 +5,7 @@ use anyhow::Context;
 use koharu_secrets::ExposeSecret;
 use reqwest::Client;
 
-use super::openai_compatible::{ChatBackend, ResponseMode};
+use super::openai_compatible::{ChatBackend, ReasoningControl, ResponseMode};
 use crate::{GenerationConfig, Model, Provider, Result, TranslationRequest};
 
 const CHAT_URL: &str = "https://api.atlascloud.ai/v1/chat/completions";
@@ -25,7 +25,10 @@ pub(super) async fn translate(
     let api_key =
         koharu_secrets::get("atlas-cloud")?.context("atlas-cloud API key is not configured")?;
     let backend = ChatBackend {
-        reasoning: generation.reasoning,
+        // Atlas Cloud documents no reasoning levels, so only the switch is sent.
+        reasoning: generation
+            .reasoning
+            .map(|enabled| ReasoningControl::Switch { enabled }),
         ..ChatBackend::new(
             "atlas-cloud",
             CHAT_URL,
@@ -57,6 +60,8 @@ pub(super) async fn models(client: &Client) -> Result<Vec<Model>> {
                 quantizations: Vec::new(),
                 vision: false,
                 reasoning: true,
+                reasoning_efforts: Vec::new(),
+                reasoning_always_on: false,
             })
             .collect(),
         Err(error) => {

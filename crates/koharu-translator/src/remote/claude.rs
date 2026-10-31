@@ -5,12 +5,14 @@
 
 use anyhow::Context;
 use koharu_secrets::ExposeSecret;
+use koharu_usage::{RequestSettings, wire};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::send_json;
+use super::{Inference, send_inference, send_json};
 use crate::{
-    GenerationConfig, Model, Provider, Result, TranslationRequest, backend::encode_image, prompt,
+    GenerationConfig, Model, Provider, ReasoningEffort, Result, TranslationRequest,
+    backend::encode_image, prompt,
 };
 
 const URL: &str = "https://api.anthropic.com/v1/messages";
@@ -39,11 +41,19 @@ pub(super) async fn models(client: &Client) -> Result<Vec<Model>> {
             let reasoning = model.capabilities.thinking.types.adaptive.supported;
             Model {
                 provider: Provider::Claude,
+                // Effort applies on top of adaptive thinking, the only thinking
+                // mode this adapter sends.
+                reasoning_efforts: if reasoning {
+                    model.capabilities.effort.levels()
+                } else {
+                    Vec::new()
+                },
                 model: Some(model.id),
                 name: model.display_name,
                 quantizations: Vec::new(),
                 vision: model.capabilities.image_input.supported,
                 reasoning,
+                reasoning_always_on: false,
             }
         })
         .collect())
@@ -58,18 +68,11 @@ pub(super) async fn translate(
 ) -> Result<Vec<String>> {
     let api_key = koharu_secrets::get("claude")?.context("claude API key is not configured")?;
     let (system, user) = prompt::prompts(request)?;
-    let body = Request {
-        model,
-        max_tokens: generation.max_tokens.unwrap_or(8192),
-        system: &system,
-        messages: [Message::user(&user, request.image.as_deref())?],
-        temperature: generation.temperature,
-        thinking: generation.reasoning.map(|enabled| ThinkingConfig {
-            kind: if enabled { "adaptive" } else { "disabled" },
-        }),
-    };
-    let response: Response = send_json(
+    let body = request_body(model, generation, &system, &user, request.image.as_deref())?;
+    let inference = Inference::new(request, settings(&body), wire::anthropic);
+    let response: Response = send_inference(
         "claude",
+        &inference,
         client
             .post(URL)
             .header("x-api-key", api_key.expose_secret())
@@ -85,6 +88,45 @@ pub(super) async fn translate(
     Ok(prompt::translations("claude", &text, &request.segments)?)
 }
 
+/// The generation settings `body` puts on the wire, for the usage journal.
+fn settings(body: &Request<'_>) -> RequestSettings {
+    RequestSettings {
+        reasoning: body
+            .thinking
+            .as_ref()
+            .map(|thinking| thinking.kind != "disabled"),
+        reasoning_effort: body
+            .output_config
+            .as_ref()
+            .map(|output| output.effort.to_owned()),
+        temperature: body.temperature,
+        max_tokens: Some(body.max_tokens),
+        ..RequestSettings::default()
+    }
+}
+
+fn request_body<'a>(
+    model: &'a str,
+    generation: &GenerationConfig,
+    system: &'a str,
+    user: &'a str,
+    image: Option<&image::DynamicImage>,
+) -> anyhow::Result<Request<'a>> {
+    Ok(Request {
+        model,
+        max_tokens: generation.max_tokens.unwrap_or(8192),
+        system,
+        messages: [Message::user(user, image)?],
+        temperature: generation.temperature,
+        thinking: generation.reasoning.map(|enabled| ThinkingConfig {
+            kind: if enabled { "adaptive" } else { "disabled" },
+        }),
+        output_config: generation.effort().map(|effort| OutputConfig {
+            effort: effort.into(),
+        }),
+    })
+}
+
 #[derive(Serialize)]
 struct Request<'a> {
     model: &'a str,
@@ -95,12 +137,19 @@ struct Request<'a> {
     temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     thinking: Option<ThinkingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    output_config: Option<OutputConfig>,
 }
 
 #[derive(Serialize)]
 struct ThinkingConfig {
     #[serde(rename = "type")]
     kind: &'static str,
+}
+
+#[derive(Serialize)]
+struct OutputConfig {
+    effort: &'static str,
 }
 
 #[derive(Serialize)]
@@ -171,6 +220,8 @@ struct ListedModel {
 struct ModelCapabilities {
     image_input: CapabilitySupport,
     thinking: ThinkingCapability,
+    #[serde(default)]
+    effort: EffortCapability,
 }
 
 #[derive(Deserialize)]
@@ -183,13 +234,46 @@ struct ThinkingTypes {
     adaptive: CapabilitySupport,
 }
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 struct CapabilitySupport {
     supported: bool,
 }
 
+/// `capabilities.effort` of the model list: which `output_config.effort`
+/// values a model accepts. `xhigh` is `null` on models that predate it.
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct EffortCapability {
+    supported: bool,
+    low: CapabilitySupport,
+    medium: CapabilitySupport,
+    high: CapabilitySupport,
+    xhigh: Option<CapabilitySupport>,
+    max: CapabilitySupport,
+}
+
+impl EffortCapability {
+    fn levels(&self) -> Vec<ReasoningEffort> {
+        let accepts = |support: &CapabilitySupport| self.supported && support.supported;
+        [
+            (ReasoningEffort::Low, accepts(&self.low)),
+            (ReasoningEffort::Medium, accepts(&self.medium)),
+            (ReasoningEffort::High, accepts(&self.high)),
+            (
+                ReasoningEffort::XHigh,
+                self.xhigh.as_ref().is_some_and(accepts),
+            ),
+            (ReasoningEffort::Max, accepts(&self.max)),
+        ]
+        .into_iter()
+        .filter_map(|(level, accepted)| accepted.then_some(level))
+        .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::ReasoningEffort::{High, Low, Max, Medium, XHigh};
     use super::*;
 
     #[test]
@@ -204,29 +288,98 @@ mod tests {
     }
 
     #[test]
-    fn reads_adaptive_thinking_capability_from_model_list() {
+    fn reads_thinking_and_effort_capabilities_from_model_list() {
         let response: ModelsResponse = serde_json::from_value(serde_json::json!({
-            "data": [{
-                "id": "claude-opus-4-8",
-                "display_name": "Claude Opus 4.8",
-                "capabilities": {
-                    "image_input": { "supported": true },
-                    "thinking": {
-                        "types": {
-                            "adaptive": { "supported": true }
+            "data": [
+                {
+                    "id": "claude-opus-4-8",
+                    "display_name": "Claude Opus 4.8",
+                    "capabilities": {
+                        "image_input": { "supported": true },
+                        "thinking": { "types": { "adaptive": { "supported": true } } },
+                        "effort": {
+                            "supported": true,
+                            "low": { "supported": true },
+                            "medium": { "supported": true },
+                            "high": { "supported": true },
+                            "xhigh": { "supported": true },
+                            "max": { "supported": true }
+                        }
+                    }
+                },
+                {
+                    "id": "claude-sonnet-4-6",
+                    "display_name": "Claude Sonnet 4.6",
+                    "capabilities": {
+                        "image_input": { "supported": true },
+                        "thinking": { "types": { "adaptive": { "supported": true } } },
+                        "effort": {
+                            "supported": true,
+                            "low": { "supported": true },
+                            "medium": { "supported": true },
+                            "high": { "supported": true },
+                            "xhigh": null,
+                            "max": { "supported": true }
+                        }
+                    }
+                },
+                {
+                    "id": "claude-haiku-4-5",
+                    "display_name": "Claude Haiku 4.5",
+                    "capabilities": {
+                        "image_input": { "supported": true },
+                        "thinking": { "types": { "adaptive": { "supported": false } } },
+                        "effort": {
+                            "supported": false,
+                            "low": { "supported": false },
+                            "medium": { "supported": false },
+                            "high": { "supported": false },
+                            "xhigh": null,
+                            "max": { "supported": false }
                         }
                     }
                 }
-            }]
+            ]
         }))
         .unwrap();
-        assert!(
-            response.data[0]
-                .capabilities
-                .thinking
-                .types
-                .adaptive
-                .supported
+        let [opus, sonnet, haiku] = &response.data[..] else {
+            panic!("expected three models");
+        };
+        assert!(opus.capabilities.thinking.types.adaptive.supported);
+        assert_eq!(
+            opus.capabilities.effort.levels(),
+            [Low, Medium, High, XHigh, Max]
         );
+        assert_eq!(
+            sonnet.capabilities.effort.levels(),
+            [Low, Medium, High, Max]
+        );
+        assert!(haiku.capabilities.effort.levels().is_empty());
+    }
+
+    #[test]
+    fn reasoning_level_reaches_the_messages_request() {
+        let payload = |reasoning, reasoning_effort| {
+            let generation = GenerationConfig {
+                reasoning,
+                reasoning_effort,
+                ..GenerationConfig::default()
+            };
+            let body = request_body("claude-opus-4-8", &generation, "system", "user", None);
+            serde_json::to_value(body.unwrap()).unwrap()
+        };
+
+        let chosen = payload(Some(true), Some(XHigh));
+        assert_eq!(chosen["thinking"]["type"], "adaptive");
+        assert_eq!(chosen["output_config"]["effort"], "xhigh");
+
+        let default = payload(Some(true), None);
+        assert_eq!(default["thinking"]["type"], "adaptive");
+        assert!(default.get("output_config").is_none());
+
+        // Turning thinking off omits the stored level.
+        let off = payload(Some(false), Some(XHigh));
+        assert_eq!(off["thinking"]["type"], "disabled");
+        assert!(off.get("output_config").is_none());
     }
 }

@@ -3,10 +3,11 @@
 
 use anyhow::Context;
 use koharu_secrets::ExposeSecret;
+use koharu_usage::{RequestSettings, UsageOutcome, wire};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::send_json;
+use super::{Inference, send_inference, send_json};
 use crate::{GenerationConfig, Model, Provider, Result, TranslationRequest, display_name, prompt};
 
 // MiniMax recommends compatibility APIs, but this provider intentionally uses its native route.
@@ -36,6 +37,10 @@ pub(super) async fn models(client: &Client) -> Result<Vec<Model>> {
             quantizations: Vec::new(),
             vision: false,
             reasoning: true,
+            reasoning_efforts: Vec::new(),
+            // M-series models always reason, and the native route has no
+            // reasoning request parameter at all.
+            reasoning_always_on: true,
         })
         .collect())
 }
@@ -49,30 +54,37 @@ pub(super) async fn translate(
 ) -> Result<Vec<String>> {
     let api_key = koharu_secrets::get("minimax")?.context("minimax API key is not configured")?;
     let (system, user) = prompt::prompts(request)?;
-    let response: Response = send_json(
+    let body = Request {
+        model,
+        messages: [
+            Message {
+                role: "system",
+                content: system,
+            },
+            Message {
+                role: "user",
+                content: user,
+            },
+        ],
+        temperature: generation.temperature,
+        top_p: generation.top_p,
+        max_completion_tokens: generation.max_tokens,
+    };
+    let inference = Inference::new(request, settings(&body), wire::openai_chat);
+    let response: Response = send_inference(
         "minimax",
+        &inference,
         client
             .post(URL)
             .bearer_auth(api_key.expose_secret())
-            .json(&Request {
-                model,
-                messages: [
-                    Message {
-                        role: "system",
-                        content: system,
-                    },
-                    Message {
-                        role: "user",
-                        content: user,
-                    },
-                ],
-                temperature: generation.temperature,
-                top_p: generation.top_p,
-                max_completion_tokens: generation.max_tokens,
-            }),
+            .json(&body),
     )
     .await?;
     if response.base_resp.status_code != 0 {
+        // The HTTP exchange succeeded, but MiniMax reports the failure in the body.
+        if let Some(usage) = request.usage.as_ref() {
+            usage.reject(UsageOutcome::ProviderError);
+        }
         return Err(anyhow::anyhow!(
             "MiniMax returned status {}: {}",
             response.base_resp.status_code,
@@ -88,6 +100,16 @@ pub(super) async fn translate(
         .message
         .content;
     Ok(prompt::translations("minimax", &text, &request.segments)?)
+}
+
+/// The generation settings `body` puts on the wire, for the usage journal.
+fn settings(body: &Request<'_>) -> RequestSettings {
+    RequestSettings {
+        temperature: body.temperature,
+        top_p: body.top_p,
+        max_tokens: body.max_completion_tokens,
+        ..RequestSettings::default()
+    }
 }
 
 #[derive(Serialize)]

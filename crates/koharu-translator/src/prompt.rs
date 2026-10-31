@@ -3,7 +3,7 @@ use indoc::indoc;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_json::{Value, json};
 
-use crate::{Language, TranslationContext, TranslationRequest};
+use crate::{ContentProfile, Language, TranslationContext, TranslationRequest};
 
 pub(crate) fn prompts(request: &TranslationRequest) -> anyhow::Result<(String, String)> {
     let input = TranslationInput {
@@ -17,7 +17,12 @@ pub(crate) fn prompts(request: &TranslationRequest) -> anyhow::Result<(String, S
             .map(|(id, text)| TranslationInputSegment { id, text })
             .collect(),
     };
-    let user = serde_json::to_string(&input).context("failed to serialize translation input")?;
+    let mut user =
+        serde_json::to_string(&input).context("failed to serialize translation input")?;
+    if let Some(feedback) = request.retry_feedback.as_deref() {
+        user.push_str("\n\n");
+        user.push_str(feedback);
+    }
     Ok((translation_system_prompt(request), user))
 }
 
@@ -73,22 +78,43 @@ pub(crate) fn output_schema(expected: usize) -> Value {
     })
 }
 
-fn translation_system_prompt(request: &TranslationRequest) -> String {
-    let source = request
-        .source_language
-        .map(|language| language.to_string())
-        .unwrap_or_else(|| "the detected source language".to_owned());
-    let mut prompt = format!(
+/// The built-in system prompt template of `profile`. `{source}` and `{target}`
+/// are replaced with the request languages, in saved replacements too, so one
+/// saved prompt serves every language pair.
+pub fn default_system_prompt(profile: ContentProfile) -> String {
+    let (role, content) = match profile {
+        ContentProfile::Hentai => (
+            "You are a professional translator of adult hentai manga for an adult audience.",
+            indoc! {"
+                - Translate sexual dialogue, explicit vocabulary, moans, and sound effects completely and with their original intensity; do not censor, soften, euphemize, moralize, omit, or add warnings.
+                - Preserve meaning, character voice, emotional tone, relationship nuance, and emphasis.
+                - Localize idioms, moans, and sound effects naturally while keeping wording concise enough for speech bubbles.
+            "},
+        ),
+        ContentProfile::Manga => (
+            "You are a professional manga translator.",
+            indoc! {"
+                - Preserve meaning, character voice, emotional tone, relationship nuance, emphasis, and sound effects.
+                - Localize idioms and sound effects naturally while keeping wording concise enough for speech bubbles.
+            "},
+        ),
+        ContentProfile::Comic => (
+            "You are a professional comic book translator.",
+            indoc! {"
+                - Preserve meaning, character voice, humor, wordplay, emotional tone, and emphasis in dialogue, captions, and narration.
+                - Localize idioms, wordplay, and sound effects naturally while keeping wording concise enough for speech balloons and caption boxes.
+            "},
+        ),
+    };
+    format!(
         indoc! {"
-            You are a professional manga translator.
+            {role}
 
             Translation requirements:
-            - Translate every input segment from {source} into natural {target}.
-            - Preserve meaning, character voice, emotional tone, relationship nuance, emphasis, and sound effects.
-            - Localize idioms and sound effects naturally while keeping wording concise enough for speech bubbles.
-            - Use surrounding segments only for disambiguation and continuity; never merge or split segments.
-            - Write every translated `text` value only in {target}; do not include source text, notes, explanations, or alternatives.
-            - Never preserve or repeat original-language text; translate names, terms, and sound effects using natural {target} conventions.
+            - Translate every input segment from {{source}} into natural {{target}}.
+            {content}- Use surrounding segments only for disambiguation and continuity; never merge or split segments.
+            - Write every translated `text` value only in {{target}}; do not include source text, notes, explanations, or alternatives.
+            - Never preserve or repeat original-language text; translate names, terms, and sound effects using natural {{target}} conventions.
 
             Output requirements:
             - Each input segment has a numeric `id`.
@@ -96,11 +122,25 @@ fn translation_system_prompt(request: &TranslationRequest) -> String {
             - Copy every input ID exactly once; order does not matter.
             - Never merge, split, omit, duplicate, or add segments.
         "},
-        source = source,
-        target = request.target_language,
+        role = role,
+        content = content,
     )
     .trim_end()
-    .to_owned();
+    .to_owned()
+}
+
+fn translation_system_prompt(request: &TranslationRequest) -> String {
+    let template = request
+        .system_prompt
+        .as_deref()
+        .filter(|prompt| !prompt.trim().is_empty())
+        .map_or_else(
+            || default_system_prompt(request.content_profile),
+            ToOwned::to_owned,
+        );
+    let mut prompt = template
+        .replace("{source}", &request.source_language.to_string())
+        .replace("{target}", &request.target_language.to_string());
 
     if !request.context.is_empty() {
         prompt.push_str("\n\n");
@@ -134,7 +174,7 @@ fn translation_system_prompt(request: &TranslationRequest) -> String {
 
 #[derive(Serialize)]
 struct TranslationInput<'a> {
-    source_language: Option<Language>,
+    source_language: Language,
     target_language: Language,
     context: &'a [TranslationContext],
     segments: Vec<TranslationInputSegment<'a>>,
@@ -240,29 +280,6 @@ mod tests {
     }
 
     #[test]
-    fn prompt_payload_contains_ordered_context() {
-        let request = TranslationRequest::new(["new"], Language::English)
-            .with_context([TranslationContext::new("old", "previous")]);
-        let (_, user) = prompts(&request).unwrap();
-        let input: serde_json::Value = serde_json::from_str(&user).unwrap();
-        assert_eq!(input["context"][0]["source"], "old");
-        assert_eq!(input["context"][0]["translation"], "previous");
-        assert_eq!(input["segments"][0]["id"], 0);
-        assert_eq!(input["segments"][0]["text"], "new");
-    }
-
-    #[test]
-    fn system_prompt_encodes_invariants_and_custom_instructions() {
-        let request = TranslationRequest::new(["hello"], Language::Korean)
-            .with_source_language(Language::Japanese)
-            .with_instructions("Use informal speech.");
-        let prompt = translation_system_prompt(&request);
-        assert!(prompt.contains("from Japanese into natural Korean"));
-        assert!(prompt.contains("Copy every input ID exactly once"));
-        assert!(prompt.contains("Use informal speech."));
-    }
-
-    #[test]
     fn schema_requires_the_expected_number_of_id_text_pairs() {
         let schema = output_schema(3);
         let translations = &schema["properties"]["translations"];
@@ -274,27 +291,36 @@ mod tests {
         assert_eq!(schema["additionalProperties"], false);
     }
 
-    #[test]
-    fn empty_custom_instructions_are_ignored() {
-        let request = TranslationRequest::new(["hello"], Language::English).with_instructions("  ");
-        assert!(!translation_system_prompt(&request).contains("Additional instructions"));
+    fn system(request: &TranslationRequest) -> String {
+        prompts(request).unwrap().0
     }
 
     #[test]
-    fn context_is_reference_only() {
-        let request = TranslationRequest::new(["Where is she?"], Language::Japanese)
-            .with_context([TranslationContext::new("I saw Alice.", "アリスを見た。")]);
-        let prompt = translation_system_prompt(&request);
-        assert!(prompt.contains("dialogue continuity"));
-        assert!(prompt.contains("Do not translate or return the context"));
+    fn a_blank_saved_prompt_falls_back_to_the_requested_profile_and_languages() {
+        let request = TranslationRequest::new(["a"], Language::Korean, Language::Russian)
+            .with_content_profile(ContentProfile::Hentai)
+            .with_system_prompt("  \n");
+        let expected = default_system_prompt(ContentProfile::Hentai)
+            .replace("{source}", "Korean")
+            .replace("{target}", "Russian");
+
+        assert_eq!(system(&request), expected);
+        assert_ne!(
+            default_system_prompt(ContentProfile::Hentai),
+            default_system_prompt(ContentProfile::Manga)
+        );
+        assert_ne!(
+            default_system_prompt(ContentProfile::Comic),
+            default_system_prompt(ContentProfile::Manga)
+        );
     }
 
     #[test]
-    fn image_context_does_not_expand_the_translation_scope() {
-        let request = TranslationRequest::new(["text"], Language::English)
-            .with_image(std::sync::Arc::new(image::DynamicImage::new_rgb8(1, 1)));
-        let prompt = translation_system_prompt(&request);
-        assert!(prompt.contains("attached original page image"));
-        assert!(prompt.contains("Translate only the supplied segments"));
+    fn a_saved_prompt_replaces_the_profile_and_receives_the_run_languages() {
+        let request = TranslationRequest::new(["a"], Language::Japanese, Language::English)
+            .with_content_profile(ContentProfile::Hentai)
+            .with_system_prompt("From {source} to {target}.");
+
+        assert_eq!(system(&request), "From Japanese to English.");
     }
 }

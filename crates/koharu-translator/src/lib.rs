@@ -9,19 +9,32 @@ mod model;
 mod prompt;
 mod provider;
 mod remote;
+mod usage;
+mod validation;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use koharu_ml::Device;
+use koharu_usage::UsageOutcome;
 
 use error::{Error, Result};
 use local::LocalTranslator;
+use usage::UsageTrace;
 
-pub use backend::{TranslationContext, TranslationRequest};
+pub use backend::{ContentProfile, TranslationContext, TranslationRequest};
 pub use language::Language;
-pub use model::{GenerationConfig, Model, ModelSelection, Quantization};
+pub use model::{GenerationConfig, Model, ModelSelection, Quantization, ReasoningEffort};
 pub(crate) use model::{ModelGeneration, QuantizationDefinition, display_name};
+pub use prompt::default_system_prompt;
 pub use provider::{Provider, ProviderConfig, ProvidersConfig};
+pub use validation::{TranslationValidationRule, TranslationValidator};
+
+pub fn is_policy_rejection(error: &(dyn std::error::Error + 'static)) -> bool {
+    matches!(
+        error.downcast_ref::<Error>(),
+        Some(Error::PolicyRejected { .. })
+    )
+}
 
 #[derive(Clone)]
 pub struct Translator {
@@ -42,6 +55,8 @@ impl LoadedLocal {
         self.model == selection.model && self.quantization == selection.quantization
     }
 }
+
+const MAX_VALIDATION_ATTEMPTS: usize = 3;
 
 impl Translator {
     pub fn from_config(
@@ -129,7 +144,7 @@ impl Translator {
             return Ok((provider_id, request.segments));
         }
 
-        let generation = generation.for_model(selection);
+        let generation = generation.for_model(selection)?;
 
         if Self::supports_vision(selection, &generation) {
             request.prepare_image()?;
@@ -137,35 +152,118 @@ impl Translator {
             request.remove_image();
         }
 
-        let expected = request.segments.len();
-        let translated = if provider == Provider::Local {
-            self.local(selection)
+        let validator = request.validator.clone();
+        let mut feedback: Option<String> = None;
+        let mut retry_indices: Option<Vec<usize>> = None;
+        let mut translated: Option<Vec<String>> = None;
+        for attempt in 0..MAX_VALIDATION_ATTEMPTS {
+            let mut attempt_request = match retry_indices.as_deref() {
+                Some(indices) => {
+                    let mut retry = request.clone();
+                    retry.segments = indices
+                        .iter()
+                        .map(|&index| request.segments[index].clone())
+                        .collect();
+                    retry.with_retry_feedback(
+                        feedback
+                            .as_ref()
+                            .expect("validation retry requires corrective feedback")
+                            .clone(),
+                    )
+                }
+                None => request.clone(),
+            };
+            let usage = UsageTrace::new(selection, &attempt_request, attempt);
+            attempt_request.usage = Some(usage.clone());
+            let attempt_expected = attempt_request.segments.len();
+            let attempt_translated = if provider == Provider::Local {
+                self.local(selection)
+                    .await?
+                    .translate(attempt_request, generation)
+                    .await?
+            } else {
+                let providers = self.providers.read()?.clone();
+                remote::translate(
+                    &self.client,
+                    &providers,
+                    selection,
+                    &generation,
+                    &attempt_request,
+                )
                 .await?
-                .translate(request, generation)
-                .await?
-        } else {
-            let providers = self.providers.read()?.clone();
-            remote::translate(&self.client, &providers, selection, &generation, &request).await?
-        };
-        if translated.len() != expected {
-            return Err(Error::SegmentCount {
-                provider: provider_id,
-                expected,
-                actual: translated.len(),
+            };
+            if attempt_translated.len() != attempt_expected {
+                usage.reject(UsageOutcome::InvalidOutput);
+                return Err(Error::SegmentCount {
+                    provider: provider_id,
+                    expected: attempt_expected,
+                    actual: attempt_translated.len(),
+                }
+                .into());
             }
-            .into());
+            if let Some(indices) = retry_indices.as_deref() {
+                merge_retry_translations(
+                    translated
+                        .as_mut()
+                        .expect("validation retry requires the initial translations"),
+                    indices,
+                    attempt_translated,
+                );
+            } else {
+                translated = Some(attempt_translated);
+            }
+
+            let current = translated
+                .as_ref()
+                .expect("every translation attempt produces output");
+            let Some(validation_feedback) = validator
+                .as_ref()
+                .and_then(|validator| validator.feedback(current, request.target_language))
+            else {
+                tracing::Span::current().record("outcome", "completed");
+                return Ok((
+                    provider_id,
+                    translated.expect("validated translations are available"),
+                ));
+            };
+            usage.reject(UsageOutcome::ValidationRejected);
+            if !should_retry_validation(provider, attempt) {
+                return Err(Error::Validation {
+                    provider: provider_id,
+                    message: validation_feedback,
+                }
+                .into());
+            }
+
+            let validator = validator
+                .as_ref()
+                .expect("validation feedback requires a validator");
+            let invalid_indices = validator.invalid_indices(current);
+            let invalid_translations = invalid_indices
+                .iter()
+                .map(|&index| current[index].clone())
+                .collect::<Vec<_>>();
+            feedback = validator.feedback(&invalid_translations, request.target_language);
+            retry_indices = Some(invalid_indices);
         }
-        tracing::Span::current().record("outcome", "completed");
-        Ok((provider_id, translated))
+        unreachable!("validation attempts are bounded and always return")
     }
 
     #[tracing::instrument(skip_all)]
     pub async fn models() -> anyhow::Result<Vec<Model>> {
+        static CLIENT: tokio::sync::OnceCell<reqwest::Client> = tokio::sync::OnceCell::const_new();
+
         let providers = ProvidersConfig::load()?;
         let providers = providers.read()?.clone();
-        let client = koharu_runtime::http_client()?;
+        let client = CLIENT
+            .get_or_try_init(|| async {
+                reqwest::Client::builder()
+                    .timeout(Duration::from_secs(5))
+                    .build()
+            })
+            .await?;
         let mut models = local::models();
-        models.extend(remote::models(&client, &providers).await);
+        models.extend(remote::models(client, &providers).await);
         Ok(models)
     }
 
@@ -190,6 +288,28 @@ impl Translator {
     }
 }
 
+fn merge_retry_translations(
+    translated: &mut [String],
+    indices: &[usize],
+    replacements: Vec<String>,
+) {
+    debug_assert_eq!(indices.len(), replacements.len());
+    for (&index, replacement) in indices.iter().zip(replacements) {
+        translated[index] = replacement;
+    }
+}
+
+fn should_retry_validation(provider: Provider, attempt: usize) -> bool {
+    attempt + 1 < MAX_VALIDATION_ATTEMPTS && retries_with_feedback(provider)
+}
+
+fn retries_with_feedback(provider: Provider) -> bool {
+    !matches!(
+        provider,
+        Provider::DeepL | Provider::GoogleCloudTranslation | Provider::Caiyun
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,6 +321,8 @@ mod tests {
             quantization: None,
             vision: true,
             reasoning: true,
+            reasoning_efforts: Vec::new(),
+            reasoning_always_on: false,
         }
     }
 
@@ -227,5 +349,33 @@ mod tests {
                 ..GenerationConfig::default()
             }
         ));
+    }
+
+    #[test]
+    fn targeted_retry_replaces_only_invalid_translations() {
+        let mut translated = vec![
+            "Первый перевод".to_owned(),
+            "Если я'll make him...".to_owned(),
+            "Третий перевод".to_owned(),
+        ];
+
+        merge_retry_translations(
+            &mut translated,
+            &[1],
+            vec!["Если я заставлю его...".to_owned()],
+        );
+
+        assert_eq!(
+            translated,
+            ["Первый перевод", "Если я заставлю его...", "Третий перевод"]
+        );
+    }
+
+    #[test]
+    fn validation_retries_are_bounded_and_provider_aware() {
+        assert!(should_retry_validation(Provider::OpenAiCompatible, 0));
+        assert!(should_retry_validation(Provider::OpenAiCompatible, 1));
+        assert!(!should_retry_validation(Provider::OpenAiCompatible, 2));
+        assert!(!should_retry_validation(Provider::DeepL, 0));
     }
 }

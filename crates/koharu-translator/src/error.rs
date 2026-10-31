@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::Language;
+use crate::{Language, ReasoningEffort};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -16,14 +16,27 @@ pub enum Error {
         provider: &'static str,
         language: Language,
     },
+    #[error("{provider} does not offer reasoning level {effort} for the selected model")]
+    UnsupportedReasoningEffort {
+        provider: &'static str,
+        effort: ReasoningEffort,
+    },
     #[error("{provider} returned {actual} segments; expected {expected}")]
     SegmentCount {
         provider: &'static str,
         expected: usize,
         actual: usize,
     },
+
+    #[error("{provider} output failed translation validation: {message}")]
+    Validation {
+        provider: &'static str,
+        message: String,
+    },
     #[error("{provider} quota or rate limit was exceeded")]
     QuotaExceeded { provider: &'static str },
+    #[error("{provider} rejected the request under its usage policy")]
+    PolicyRejected { provider: &'static str },
     #[error("{provider} API request failed with HTTP {status}: {message}")]
     Api {
         provider: &'static str,

@@ -25,11 +25,17 @@ struct Args {
     #[arg(long)]
     base_url: Option<Url>,
 
+    #[arg(long, default_value = "ja-JP")]
+    source: Language,
+
     #[arg(long)]
     target: Language,
 
     #[arg(long)]
     instructions: Option<String>,
+
+    #[arg(long)]
+    system_prompt: Option<String>,
 
     #[arg(long)]
     cpu: bool,
@@ -85,8 +91,13 @@ async fn main() -> Result<()> {
         quantization: None,
         vision: true,
         reasoning: true,
+        reasoning_efforts: Vec::new(),
+        reasoning_always_on: false,
     };
-    let mut request = TranslationRequest::new(args.segments, args.target);
+    let mut request = TranslationRequest::new(args.segments, args.source, args.target);
+    if let Some(system_prompt) = args.system_prompt {
+        request = request.with_system_prompt(system_prompt);
+    }
     if let Some(instructions) = args.instructions {
         request = request.with_instructions(instructions);
     }
@@ -113,6 +124,7 @@ fn prepare_secret(args: &Args, provider: Provider) -> Result<()> {
         Provider::Gemini => Some(("GEMINI_API_KEY", true)),
         Provider::Claude => Some(("ANTHROPIC_API_KEY", true)),
         Provider::Grok => Some(("XAI_API_KEY", true)),
+        Provider::Cursor => Some(("CURSOR_API_KEY", true)),
         Provider::MiniMax => Some(("MINIMAX_API_KEY", true)),
         Provider::DeepSeek => Some(("DEEPSEEK_API_KEY", true)),
         Provider::OpenAiCompatible => Some(("OPENAI_COMPATIBLE_API_KEY", false)),

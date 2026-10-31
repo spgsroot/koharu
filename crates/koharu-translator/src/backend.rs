@@ -10,36 +10,79 @@ use crate::Language;
 const MAX_IMAGE_DIMENSION: u32 = 2048;
 const JPEG_QUALITY: u8 = 88;
 
-#[derive(Debug, Clone, PartialEq)]
+/// The kind of material being translated. Each profile has its own built-in
+/// system prompt and its own saved replacement.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    specta::Type,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentProfile {
+    Hentai,
+    #[default]
+    Manga,
+    Comic,
+}
+
+#[derive(Debug, Clone)]
 pub struct TranslationRequest {
     pub segments: Vec<String>,
-    pub source_language: Option<Language>,
+    pub source_language: Language,
     pub target_language: Language,
+    pub content_profile: ContentProfile,
+    pub system_prompt: Option<String>,
     pub instructions: Option<String>,
     pub context: Vec<TranslationContext>,
     pub image: Option<Arc<DynamicImage>>,
+    pub(crate) validator: Option<crate::TranslationValidator>,
+    pub(crate) retry_feedback: Option<String>,
+    /// Opaque identifiers journaled with the request's usage; see
+    /// [`Self::with_usage_context`].
+    pub(crate) usage_context: koharu_usage::UsageContext,
+    /// Set per validation attempt by the translator.
+    pub(crate) usage: Option<crate::usage::UsageTrace>,
 }
 
 impl TranslationRequest {
     #[must_use]
     pub fn new(
         segments: impl IntoIterator<Item = impl Into<String>>,
+        source_language: Language,
         target_language: Language,
     ) -> Self {
         Self {
             segments: segments.into_iter().map(Into::into).collect(),
-            source_language: None,
+            source_language,
             target_language,
+            content_profile: ContentProfile::default(),
+            system_prompt: None,
             instructions: None,
             context: Vec::new(),
             image: None,
+            validator: None,
+            retry_feedback: None,
+            usage_context: koharu_usage::UsageContext::default(),
+            usage: None,
         }
     }
 
-    #[cfg(test)]
     #[must_use]
-    pub fn with_source_language(mut self, language: Language) -> Self {
-        self.source_language = Some(language);
+    pub fn with_content_profile(mut self, content_profile: ContentProfile) -> Self {
+        self.content_profile = content_profile;
+        self
+    }
+
+    #[must_use]
+    pub fn with_system_prompt(mut self, system_prompt: impl Into<String>) -> Self {
+        self.system_prompt = Some(system_prompt.into());
         self
     }
 
@@ -50,15 +93,34 @@ impl TranslationRequest {
     }
 
     #[must_use]
+    pub fn with_validator(mut self, validator: crate::TranslationValidator) -> Self {
+        self.validator = Some(validator);
+        self
+    }
+
+    #[must_use]
     pub fn with_image(mut self, image: Arc<DynamicImage>) -> Self {
         self.image = Some(image);
         self
     }
 
-    #[cfg(test)]
+    /// Identifies what the request is about in the usage journal. Only the
+    /// project, page and job identifiers are read; the translator fills in the
+    /// languages and counts itself, and no text is ever journaled.
+    #[must_use]
+    pub fn with_usage_context(mut self, context: koharu_usage::UsageContext) -> Self {
+        self.usage_context = context;
+        self
+    }
+
     #[must_use]
     pub fn with_context(mut self, context: impl IntoIterator<Item = TranslationContext>) -> Self {
         self.context = context.into_iter().collect();
+        self
+    }
+
+    pub(crate) fn with_retry_feedback(mut self, feedback: String) -> Self {
+        self.retry_feedback = Some(feedback);
         self
     }
 

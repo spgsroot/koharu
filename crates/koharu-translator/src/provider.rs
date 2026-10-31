@@ -6,9 +6,9 @@ use strum::{Display, EnumIter, EnumString, IntoStaticStr, VariantArray};
 use crate::{
     local::LocalConfig,
     remote::{
-        AtlasCloudConfig, CaiyunConfig, ClaudeConfig, DeepLConfig, DeepSeekConfig, GeminiConfig,
-        GoogleCloudConfig, GrokConfig, LmStudioConfig, MiniMaxConfig, OpenAiCompatibleConfig,
-        OpenAiConfig, OpenRouterConfig,
+        AtlasCloudConfig, CaiyunConfig, ClaudeConfig, CursorConfig, DeepLConfig, DeepSeekConfig,
+        GeminiConfig, GoogleCloudConfig, GrokConfig, LmStudioConfig, MiniMaxConfig,
+        OpenAiCompatibleConfig, OpenAiConfig, OpenRouterConfig,
     },
 };
 
@@ -150,6 +150,12 @@ define_providers! {
         name: "Grok",
         field: grok,
         config: GrokConfig,
+    }
+    Cursor {
+        id: "cursor",
+        name: "Cursor",
+        field: cursor,
+        config: CursorConfig,
     }
     MiniMax {
         id: "minimax",

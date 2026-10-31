@@ -1,0 +1,25 @@
+[package]
+name = "koharu-usage"
+version.workspace = true
+edition.workspace = true
+description = "Local journal of inference requests, provider-reported token usage and cost."
+license.workspace = true
+authors.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+koharu-config = { workspace = true }
+parking_lot = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+specta = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

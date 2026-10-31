@@ -3,11 +3,13 @@
 
 use anyhow::Context;
 use koharu_secrets::ExposeSecret;
+use koharu_usage::{RequestSettings, wire};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use url::Url;
 
-use super::send_json;
+use super::{Inference, send_inference_with_transient_retry, send_json};
 use crate::{
     GenerationConfig, Model, Provider, Result, TranslationRequest, backend::encode_image,
     display_name, prompt,
@@ -41,6 +43,8 @@ pub(super) async fn compatible(
     let api_key = koharu_secrets::get("openai-compatible")?;
     let endpoint = endpoint(config.base_url.as_ref(), "chat/completions");
     let backend = ChatBackend {
+        // The model list of an arbitrary endpoint reports no capabilities and
+        // servers differ in which levels they accept, so only the switch is sent.
         reasoning_effort: generation
             .reasoning
             .map(|enabled| if enabled { "medium" } else { "none" }),
@@ -61,6 +65,63 @@ pub(super) async fn translate(
     backend: ChatBackend<'_>,
     request: &TranslationRequest,
 ) -> Result<Vec<String>> {
+    let body = request_body(&backend, request)?;
+    let http = client.post(backend.endpoint).json(&body);
+    let http = match backend.api_key {
+        Some(api_key) => http.bearer_auth(api_key),
+        None => http,
+    };
+    let inference = Inference::new(request, settings(&backend), backend.report);
+    let response: ChatResponse =
+        send_inference_with_transient_retry(backend.provider, &inference, http).await?;
+    let text = response
+        .choices
+        .into_iter()
+        .next()
+        .context("chat completion returned no choices")?
+        .message
+        .content;
+    Ok(prompt::translations(
+        backend.provider,
+        &text,
+        &request.segments,
+    )?)
+}
+
+/// The generation settings `backend` puts on the wire, for the usage journal.
+fn settings(backend: &ChatBackend<'_>) -> RequestSettings {
+    let level = match backend.reasoning {
+        Some(ReasoningControl::Level { effort }) => Some(effort),
+        _ => None,
+    };
+    let reasoning = match (
+        backend.reasoning,
+        backend.thinking,
+        backend.reasoning_effort,
+    ) {
+        (Some(ReasoningControl::Switch { enabled }), _, _) => Some(enabled),
+        (Some(ReasoningControl::Level { .. }), _, _) => Some(true),
+        (None, Some(kind), _) => Some(kind == "enabled"),
+        (None, None, Some(effort)) => Some(effort != "none"),
+        (None, None, None) => None,
+    };
+    RequestSettings {
+        reasoning,
+        reasoning_effort: backend.reasoning_effort.or(level).map(str::to_owned),
+        temperature: backend.temperature,
+        top_p: backend.top_p,
+        top_k: None,
+        max_tokens: backend.max_tokens.or(backend.max_completion_tokens),
+        frequency_penalty: backend.frequency_penalty,
+        presence_penalty: backend.presence_penalty,
+    }
+}
+
+/// The chat completion a backend sends for `request`.
+pub(super) fn request_body<'a>(
+    backend: &ChatBackend<'a>,
+    request: &TranslationRequest,
+) -> Result<ChatRequest<'a>> {
     let (system, user) = prompt::prompts(request)?;
     let user_content = match request.image.as_deref() {
         Some(image) => MessageContent::Parts(vec![
@@ -73,7 +134,7 @@ pub(super) async fn translate(
         ]),
         None => MessageContent::Text(user),
     };
-    let body = ChatRequest {
+    Ok(ChatRequest {
         model: backend.model,
         messages: [
             Message {
@@ -92,30 +153,12 @@ pub(super) async fn translate(
         frequency_penalty: backend.frequency_penalty,
         presence_penalty: backend.presence_penalty,
         reasoning_effort: backend.reasoning_effort,
-        reasoning: backend.reasoning.map(|enabled| ReasoningConfig { enabled }),
+        reasoning: backend.reasoning,
         thinking: backend.thinking.map(|kind| ThinkingConfig { kind }),
         response_format: backend
             .response_mode
             .response_format(request.segments.len()),
-    };
-    let http = client.post(backend.endpoint).json(&body);
-    let http = match backend.api_key {
-        Some(api_key) => http.bearer_auth(api_key),
-        None => http,
-    };
-    let response: ChatResponse = send_json(backend.provider, http).await?;
-    let text = response
-        .choices
-        .into_iter()
-        .next()
-        .context("chat completion returned no choices")?
-        .message
-        .content;
-    Ok(prompt::translations(
-        backend.provider,
-        &text,
-        &request.segments,
-    )?)
+    })
 }
 
 pub(super) struct ChatBackend<'a> {
@@ -130,9 +173,11 @@ pub(super) struct ChatBackend<'a> {
     pub(super) frequency_penalty: Option<f32>,
     pub(super) presence_penalty: Option<f32>,
     pub(super) reasoning_effort: Option<&'static str>,
-    pub(super) reasoning: Option<bool>,
+    pub(super) reasoning: Option<ReasoningControl>,
     pub(super) thinking: Option<&'static str>,
     pub(super) response_mode: ResponseMode,
+    /// Reads the provider's usage out of a response body.
+    pub(super) report: fn(&Value) -> wire::Reported,
 }
 
 impl<'a> ChatBackend<'a> {
@@ -159,6 +204,7 @@ impl<'a> ChatBackend<'a> {
             reasoning: None,
             thinking: None,
             response_mode,
+            report: wire::openai_chat,
         }
     }
 }
@@ -180,6 +226,8 @@ pub(super) async fn models(client: &Client, config: &OpenAiCompatibleConfig) -> 
             quantizations: Vec::new(),
             vision: true,
             reasoning: true,
+            reasoning_efforts: Vec::new(),
+            reasoning_always_on: false,
         })
         .collect())
 }
@@ -202,7 +250,7 @@ fn endpoint(base_url: Option<&Url>, suffix: &str) -> String {
 }
 
 #[derive(Serialize)]
-struct ChatRequest<'a> {
+pub(super) struct ChatRequest<'a> {
     model: &'a str,
     messages: [Message; 2],
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -220,7 +268,7 @@ struct ChatRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning_effort: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    reasoning: Option<ReasoningConfig>,
+    reasoning: Option<ReasoningControl>,
     #[serde(skip_serializing_if = "Option::is_none")]
     thinking: Option<ThinkingConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -233,9 +281,26 @@ struct ThinkingConfig {
     kind: &'static str,
 }
 
+/// The `reasoning` object of OpenRouter-style gateways: a switch, or a level,
+/// which implies on.
 #[derive(Clone, Copy, Serialize)]
-struct ReasoningConfig {
-    enabled: bool,
+#[serde(untagged)]
+pub(super) enum ReasoningControl {
+    Switch { enabled: bool },
+    Level { effort: &'static str },
+}
+
+impl ReasoningControl {
+    pub(super) fn from_generation(generation: &GenerationConfig) -> Option<Self> {
+        generation
+            .reasoning
+            .map(|enabled| match generation.effort() {
+                Some(effort) => Self::Level {
+                    effort: effort.into(),
+                },
+                None => Self::Switch { enabled },
+            })
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -396,9 +461,31 @@ mod tests {
     }
 
     #[test]
-    fn serializes_reasoning_control() {
+    fn gateway_reasoning_control_is_a_switch_or_a_level() {
+        let control = |reasoning, reasoning_effort| {
+            let generation = GenerationConfig {
+                reasoning,
+                reasoning_effort,
+                ..GenerationConfig::default()
+            };
+            serde_json::to_value(ReasoningControl::from_generation(&generation)).unwrap()
+        };
+        assert_eq!(control(None, None), serde_json::Value::Null);
         assert_eq!(
-            serde_json::to_value(ReasoningConfig { enabled: false }).unwrap(),
+            control(Some(false), None),
+            serde_json::json!({ "enabled": false })
+        );
+        assert_eq!(
+            control(Some(true), None),
+            serde_json::json!({ "enabled": true })
+        );
+        assert_eq!(
+            control(Some(true), Some(crate::ReasoningEffort::High)),
+            serde_json::json!({ "effort": "high" })
+        );
+        // A stored level is not sent while reasoning is off.
+        assert_eq!(
+            control(Some(false), Some(crate::ReasoningEffort::High)),
             serde_json::json!({ "enabled": false })
         );
     }

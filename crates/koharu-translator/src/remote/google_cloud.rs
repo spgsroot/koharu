@@ -7,7 +7,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::send_json;
+use super::{Inference, send_inference};
 use crate::{Model, Provider, Result, TranslationRequest};
 
 const URL: &str = "https://translation.googleapis.com/language/translate/v2";
@@ -39,12 +39,13 @@ pub(super) async fn translate(
     let mut url = Url::parse(URL).expect("Google API URL is valid");
     url.query_pairs_mut()
         .append_pair("key", api_key.expose_secret());
-    let response: Response = send_json(
+    let response: Response = send_inference(
         "google-cloud-translation",
+        &Inference::service(request),
         client.post(url).json(&Request {
             q: &request.segments,
             target: request.target_language.tag(),
-            source: request.source_language.map(|language| language.tag()),
+            source: request.source_language.tag(),
             format: "text",
         }),
     )
@@ -61,8 +62,7 @@ pub(super) async fn translate(
 struct Request<'a> {
     q: &'a [String],
     target: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    source: Option<&'a str>,
+    source: &'a str,
     format: &'static str,
 }
 

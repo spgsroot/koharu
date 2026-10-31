@@ -15,7 +15,9 @@ publish.workspace = true
 koharu-config = { workspace = true }
 koharu-ml = { workspace = true }
 koharu-runtime = { workspace = true }
+koharu-agent = { workspace = true }
 koharu-secrets = { workspace = true }
+koharu-usage = { workspace = true }
 anyhow = { workspace = true }
 base64 = { workspace = true }
 clap = { workspace = true }
@@ -24,6 +26,7 @@ futures = { workspace = true }
 image = { workspace = true }
 indoc = { workspace = true }
 reqwest = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 specta = { workspace = true }
@@ -32,3 +35,6 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
