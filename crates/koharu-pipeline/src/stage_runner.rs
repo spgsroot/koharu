@@ -8,15 +8,14 @@ use koharu_scene::{EntityId, Patch};
 
 use crate::{
     ErrorKind, PipelineConfig, PipelineError, Progress, ProgressSink, Stage, StopToken,
-    accelerator::AcceleratorGate,
+    accelerator::Lanes,
     progress,
-    resources::ResourceMonitor,
-    stages::{StageInput, Stages},
+    stages::{Models, StageInput, Stages},
 };
 
 pub(crate) struct StageRunner {
     stages: Stages,
-    accelerator: AcceleratorGate,
+    lanes: Arc<Lanes>,
 }
 
 impl StageRunner {
@@ -24,11 +23,12 @@ impl StageRunner {
         config: &PipelineConfig,
         translator: koharu_translator::Translator,
         device: &koharu_ml::Device,
-        resources: Arc<ResourceMonitor>,
+        lanes: Arc<Lanes>,
+        models: Arc<Models>,
     ) -> Result<Self> {
         Ok(Self {
-            stages: Stages::new(config, translator, device)?,
-            accelerator: AcceleratorGate::new(device, resources),
+            stages: Stages::new(config, translator, device, models)?,
+            lanes,
         })
     }
 
@@ -47,6 +47,10 @@ impl StageRunner {
         }
     }
 
+    pub(crate) fn unload(&self, stage: Stage) -> bool {
+        self.stages.unload(stage)
+    }
+
     async fn run_with_recovery(
         &self,
         job: &StageJob,
@@ -55,20 +59,25 @@ impl StageRunner {
         if job.stop.stopped() {
             return Ok(StageOutcome::Stopped);
         }
-        let skip = self.stages.skip(job.stage, &job.input).map_err(|error| {
-            self.stage_error(
-                job.stage,
-                model,
-                AttemptFailure {
-                    kind: ErrorKind::Processing,
-                    error,
-                },
-            )
-        })?;
+        let skip = self
+            .stages
+            .skip(job.stage, &job.input)
+            .await
+            .map_err(|error| {
+                self.stage_error(
+                    job.stage,
+                    model,
+                    AttemptFailure {
+                        kind: ErrorKind::Processing,
+                        error,
+                    },
+                )
+            })?;
         if skip {
             return Ok(StageOutcome::Skipped);
         }
-        let permit = self.accelerator.acquire().await;
+        let accelerator = self.stages.uses_accelerator(job.stage);
+        let permit = self.lanes.acquire(job.stage, accelerator, job.urgent).await;
         if job.stop.stopped() {
             return Ok(StageOutcome::Stopped);
         }
@@ -83,7 +92,10 @@ impl StageRunner {
         tracing::warn!(stage = %job.stage, page = %job.input.page(), error = %failure.error, "retrying stage after memory pressure");
         let _metric =
             tracing::info_span!(target: "koharu_metrics", "stage_retry", stage = %job.stage, model);
-        let _permit = self.accelerator.recover(job.stage, &self.stages).await;
+        let _permit = self
+            .lanes
+            .recover(job.stage, accelerator, job.urgent, &self.stages)
+            .await;
         if job.stop.stopped() {
             return Ok(StageOutcome::Stopped);
         }
@@ -169,6 +181,8 @@ pub(crate) struct StageJob {
     input: StageInput,
     stop: StopToken,
     progress: Option<ProgressSink>,
+    /// Interactive work takes the accelerator ahead of queued pipeline work.
+    urgent: bool,
 }
 
 impl StageJob {
@@ -177,12 +191,14 @@ impl StageJob {
         input: StageInput,
         stop: StopToken,
         progress: Option<ProgressSink>,
+        urgent: bool,
     ) -> Self {
         Self {
             stage,
             input,
             stop,
             progress,
+            urgent,
         }
     }
 }

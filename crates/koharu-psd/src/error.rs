@@ -13,13 +13,6 @@ pub enum PsdExportError {
     MissingRenderedEntity(koharu_scene::EntityId),
     #[error("PSD layer count exceeds the classic format limit: {0}")]
     TooManyLayers(usize),
-    #[error("mask dimensions differ: {left_width}x{left_height} and {right_width}x{right_height}")]
-    MismatchedMaskDimensions {
-        left_width: u32,
-        left_height: u32,
-        right_width: u32,
-        right_height: u32,
-    },
     #[error("invalid layer bounds for {layer}: {width}x{height}")]
     InvalidLayerBounds {
         layer: String,

@@ -23,14 +23,18 @@ pub enum Stage {
     Detection,
     Ocr,
     Translation,
+    CensorDetection,
     Inpainting,
+    Decensor,
 }
 
 impl Stage {
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 6] = [
         Self::Detection,
         Self::Ocr,
         Self::Translation,
+        Self::CensorDetection,
         Self::Inpainting,
+        Self::Decensor,
     ];
 }

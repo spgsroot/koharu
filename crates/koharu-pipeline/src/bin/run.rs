@@ -10,14 +10,17 @@ use anyhow::{Context as _, Result};
 use clap::{Parser, ValueEnum};
 use koharu_config::Config;
 use koharu_pipeline::{
-    Committer, DetectionModel, Flux2KleinConfig, InpaintingModel, KoharuLayoutRFDetrSeg2XLConfig,
-    OcrModel, Operation, Pipeline, PipelineConfig, Progress, Request, RoremMixedConfig, Scope,
-    StageOutput, TranslationConfig,
+    ArtworkInpaintingConfig, BubbleInpaintingKind, CensorDetectionConfig, Committed, Committer,
+    DecensorConfig, DecensorKind, DetectionModel, InpaintingConfig, InpaintingKind,
+    KoharuLayoutRFDetrSeg2XLConfig, OcrModel, Operation, Pipeline, PipelineConfig, Progress,
+    Request, Scope, StageOutput, SystemPrompts, TranslationConfig,
 };
 use koharu_rasterizer::{RasterOptions, Rasterizer};
 use koharu_renderer::Renderer;
 use koharu_scene::{AssetInput, AssetMetadata, AssetRole, At, PageDraft, Session};
-use koharu_translator::{GenerationConfig, Language, ModelSelection, Provider, ProvidersConfig};
+use koharu_translator::{
+    ContentProfile, GenerationConfig, Language, ModelSelection, Provider, ProvidersConfig,
+};
 
 #[derive(Debug, Parser)]
 #[command(version, about = "Run Koharu's complete in-process pipeline")]
@@ -35,13 +38,29 @@ struct Arguments {
     ocr: OcrChoice,
 
     #[arg(long, value_enum, default_value = "lama")]
-    inpainting: InpaintingChoice,
+    bubble_inpainting: BubbleInpaintingChoice,
+
+    #[arg(long, value_enum, default_value = "flux2-klein-9b-uncensored")]
+    artwork_inpainting: ArtworkInpaintingChoice,
+
+    #[arg(long, value_enum, default_value = "flux2-klein-9b-uncensored")]
+    decensor: DecensorChoice,
+
+    #[arg(long, default_value = "ja-JP")]
+    source_language: Language,
 
     #[arg(long, default_value = "en-US")]
     target_language: Language,
 
     #[arg(long)]
     translation_instructions: Option<String>,
+
+    #[arg(long, value_enum, default_value = "manga")]
+    content_profile: ContentProfileChoice,
+
+    /// Replaces the selected content profile's built-in prompt.
+    #[arg(long)]
+    translation_system_prompt: Option<String>,
 
     #[arg(long, default_value = "gemma4-12b-it")]
     llm: String,
@@ -54,8 +73,10 @@ struct SessionCommitter<'a>(&'a mut Session);
 
 #[async_trait::async_trait]
 impl Committer for SessionCommitter<'_> {
-    async fn commit(&mut self, output: StageOutput) -> Result<koharu_scene::Snapshot> {
-        Ok(self.0.commit(output.patch).await?.snapshot)
+    async fn commit(&mut self, output: StageOutput) -> Result<Committed> {
+        Ok(Committed::Applied(
+            self.0.commit(output.patch).await?.snapshot,
+        ))
     }
 }
 
@@ -78,19 +99,67 @@ enum OcrChoice {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
-enum InpaintingChoice {
+enum BubbleInpaintingChoice {
     #[value(name = "lama")]
     LaMa,
     #[value(name = "aot-inpainting")]
     AotInpainting,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum ArtworkInpaintingChoice {
+    #[value(name = "flux2-klein-9b-uncensored")]
+    Flux2Klein9B,
     #[value(name = "flux2-klein")]
     Flux2Klein,
+    #[value(name = "diffusioncreampy-animagine-xl-4")]
+    DiffusionCreamPyAnimagineXl4,
+    #[value(name = "diffusioncreampy-illustrious-xl-2")]
+    DiffusionCreamPyIllustriousXl2,
+    #[value(name = "rorem-mixed")]
+    RoremMixed,
+    #[value(name = "lama")]
+    LaMa,
+    #[value(name = "aot-inpainting")]
+    AotInpainting,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum DecensorChoice {
+    #[value(name = "flux2-klein-9b-uncensored")]
+    Flux2Klein9B,
+    #[value(name = "flux2-klein")]
+    Flux2Klein,
+    #[value(name = "diffusioncreampy-animagine-xl-4")]
+    DiffusionCreamPyAnimagineXl4,
+    #[value(name = "diffusioncreampy-illustrious-xl-2")]
+    DiffusionCreamPyIllustriousXl2,
     #[value(name = "rorem-mixed")]
     RoremMixed,
 }
 
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum ContentProfileChoice {
+    Hentai,
+    Manga,
+    Comic,
+}
+
 impl Arguments {
     fn pipeline_config(&self) -> PipelineConfig {
+        let content_profile = match self.content_profile {
+            ContentProfileChoice::Hentai => ContentProfile::Hentai,
+            ContentProfileChoice::Manga => ContentProfile::Manga,
+            ContentProfileChoice::Comic => ContentProfile::Comic,
+        };
+        let mut system_prompts = SystemPrompts::default();
+        match content_profile {
+            ContentProfile::Hentai => {
+                system_prompts.hentai = self.translation_system_prompt.clone()
+            }
+            ContentProfile::Manga => system_prompts.manga = self.translation_system_prompt.clone(),
+            ContentProfile::Comic => system_prompts.comic = self.translation_system_prompt.clone(),
+        }
         PipelineConfig {
             detection: match self.detection {
                 DetectionChoice::KoharuLayoutRFDetrSeg2XL => {
@@ -112,21 +181,55 @@ impl Arguments {
                     quantization: None,
                     vision: true,
                     reasoning: true,
+                    reasoning_efforts: Vec::new(),
+                    reasoning_always_on: false,
                 },
                 generation: GenerationConfig::default(),
+                source_language: self.source_language,
                 target_language: self.target_language,
+                content_profile,
+                system_prompts,
                 instructions: self.translation_instructions.clone(),
+                validators: Vec::new(),
             },
-            inpainting: match self.inpainting {
-                InpaintingChoice::LaMa => InpaintingModel::LaMa {},
-                InpaintingChoice::AotInpainting => InpaintingModel::AotInpainting {},
-                InpaintingChoice::Flux2Klein => {
-                    InpaintingModel::Flux2Klein(Flux2KleinConfig::default())
-                }
-                InpaintingChoice::RoremMixed => {
-                    InpaintingModel::RoremMixed(RoremMixedConfig::default())
-                }
+            inpainting: InpaintingConfig {
+                bubbles: match self.bubble_inpainting {
+                    BubbleInpaintingChoice::LaMa => BubbleInpaintingKind::LaMa,
+                    BubbleInpaintingChoice::AotInpainting => BubbleInpaintingKind::AotInpainting,
+                },
+                artwork: ArtworkInpaintingConfig {
+                    model: match self.artwork_inpainting {
+                        ArtworkInpaintingChoice::Flux2Klein9B => InpaintingKind::Flux2Klein9B,
+                        ArtworkInpaintingChoice::Flux2Klein => InpaintingKind::Flux2Klein,
+                        ArtworkInpaintingChoice::DiffusionCreamPyAnimagineXl4 => {
+                            InpaintingKind::DiffusionCreamPyAnimagineXl4
+                        }
+                        ArtworkInpaintingChoice::DiffusionCreamPyIllustriousXl2 => {
+                            InpaintingKind::DiffusionCreamPyIllustriousXl2
+                        }
+                        ArtworkInpaintingChoice::RoremMixed => InpaintingKind::RoremMixed,
+                        ArtworkInpaintingChoice::LaMa => InpaintingKind::LaMa,
+                        ArtworkInpaintingChoice::AotInpainting => InpaintingKind::AotInpainting,
+                    },
+                    ..ArtworkInpaintingConfig::default()
+                },
+                ..InpaintingConfig::default()
             },
+            decensor: DecensorConfig {
+                model: match self.decensor {
+                    DecensorChoice::Flux2Klein9B => DecensorKind::Flux2Klein9B,
+                    DecensorChoice::Flux2Klein => DecensorKind::Flux2Klein,
+                    DecensorChoice::DiffusionCreamPyAnimagineXl4 => {
+                        DecensorKind::DiffusionCreamPyAnimagineXl4
+                    }
+                    DecensorChoice::DiffusionCreamPyIllustriousXl2 => {
+                        DecensorKind::DiffusionCreamPyIllustriousXl2
+                    }
+                    DecensorChoice::RoremMixed => DecensorKind::RoremMixed,
+                },
+                ..DecensorConfig::default()
+            },
+            censor_detection: CensorDetectionConfig::default(),
             processor: Default::default(),
         }
     }
@@ -251,34 +354,5 @@ fn image_media_type(path: &std::path::Path) -> &'static str {
         Some("jpg" | "jpeg") => "image/jpeg",
         Some("webp") => "image/webp",
         _ => "image/png",
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cli_flags_select_models() {
-        let arguments = Arguments::try_parse_from([
-            "run",
-            "--input",
-            "input.png",
-            "--output",
-            "output.png",
-            "--ocr",
-            "manga-ocr",
-            "--inpainting",
-            "flux2-klein",
-        ])
-        .unwrap();
-        assert!(matches!(
-            arguments.pipeline_config().ocr,
-            OcrModel::MangaOcr
-        ));
-        assert!(matches!(
-            arguments.pipeline_config().inpainting,
-            InpaintingModel::Flux2Klein(_)
-        ));
     }
 }

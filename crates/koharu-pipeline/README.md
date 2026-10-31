@@ -37,7 +37,8 @@ components, and assets they consume. OCR, translation, and inpainting branches
 on one page therefore compose, while a changed input or overlapping write fails
 conflict validation instead of publishing stale derived output.
 
-The application records all revisions from one invocation as one undo group.
+The application records each completed stage as its own named state in the
+project history panel, so a pipeline run can be undone stage by stage.
 
 ## Configuration
 
@@ -56,6 +57,22 @@ language, instructions, and generation options live under
 generation as detection, OCR, and inpainting. Provider connection settings are
 owned by `koharu-translator` under `[providers]`.
 
+Inpainting selects a fast bubble model under `[pipeline.inpainting] bubbles`
+and an independent artwork model under `[pipeline.inpainting.artwork] model`.
+Artwork and decensoring own per-model settings under
+`[pipeline.inpainting.artwork.<model>]` and `[pipeline.decensor.<model>]`.
+The same model never shares prompts, sampling options, or ComfyUI endpoints.
+Model switches preserve every saved profile of that route.
+
+Detection commits disjoint `bubble-text-mask` and `artwork-text-mask` assets
+plus their `text-mask` union. Inpainting fills uniform bubble interiors
+without inference, uses LaMa/AOT for the remaining bubble text, then uses the
+artwork model (FLUX.2 Klein 9B by default) for other lettering, including SFX.
+Manual masks use the artwork route. Only masked pixels are committed;
+previous cleanup outside the mask is preserved. Legacy text-mask-only pages
+require whole-page detection again; regional reruns preserve existing route
+masks outside their scope rather than silently converting incomplete masks.
+
 The translation processor delegates provider execution and local-model
 residency to `koharu_translator::Translator`, but the translator does not load
 or watch workflow configuration. Each result replaces the `Translation`
@@ -67,9 +84,12 @@ layer remain independently editable entities.
 
 The workflow is small and explicit:
 
-```text
-detection -> OCR -> translation
-         \-> inpainting
+```mermaid
+flowchart LR
+    Detection --> CensorMask["Censor detection"]
+    CensorMask --> OCR --> Translation
+    CensorMask --> Inpainting --> Decensor
+    CensorMask --> Decensor
 ```
 
 There is no runtime graph or graph library. `Operation` selects a subset of
@@ -80,6 +100,12 @@ this workflow:
 - `Only(Stage)`
 
 For each page, a stage starts only after its selected prerequisite commits.
+In particular, selected censor detection commits before OCR or inpainting
+captures the page's asset collection. This prevents a newly written
+`censor-mask` from invalidating either reader's stage output. Decensoring also
+waits for selected inpainting so it preserves that page's latest cleanup.
+Unselected prerequisites do not block an `Only` or custom-stage operation.
+
 Pages enter in project order and the scheduler always selects the oldest ready
 page; there is no global wave barrier. On an accelerator, ready jobs share one
 execution lane while loaded models remain resident across pages. Benchmarks on
@@ -88,20 +114,10 @@ increased makespan by 2.5-4x through kernel and memory-bandwidth contention.
 Serial model execution therefore produces more pages per second than maximizing
 the activity percentage reported by the GPU.
 
-The readiness window still matters: completed detection immediately exposes
-both of that page's branches, commits remain page-local, and the next best job
-can start without waiting for an unrelated page to finish. CPU-only execution
+The readiness window still matters: committed prerequisites expose each page's
+next jobs without waiting for an unrelated page to finish. CPU-only execution
 retains independent per-model lanes because it does not use the accelerator
 gate.
-
-```text
-ready event               accelerator lane
-page 1 enters             detection page 1
-detection commits         OCR page 1
-page 1 image branch ready inpainting page 1
-page 2 window enters      detection page 2
-page 1 OCR commits        translation page 1
-```
 
 Page priority prevents an upstream model from racing arbitrarily far ahead,
 while independent page branches use otherwise idle models. The number of
@@ -134,6 +150,15 @@ If a stage reports an out-of-memory failure, the accelerator gate unloads the
 other stage models, allows the device to settle, and retries that stage once.
 The requested model remains loaded when possible.
 
+Inpainting and decensoring reuse one native weight allocation when they select
+the same model. Their stage backends retain separate conditioning; weights are
+released once no loaded stage holds them.
+
+Empty masks skip model loading. Cleanup preparation borrows already decoded
+mask and layer pixels where possible, and masked composition scans the mask's
+bounding box rather than every page pixel. Flat-fill and tiled reconstruction
+retain the same mask threshold and outside-mask pixels.
+
 The resource monitor samples the selected accelerator ten times per second for
 UI telemetry. On Windows, DXGI supplies the process-aware memory budget while
 NVML supplies NVIDIA compute utilization. Telemetry does not control model
@@ -141,6 +166,21 @@ lifetime.
 
 `ModelCell` serializes access to one model and prevents an active model from
 being unloaded.
+
+### Measured cleanup overhead
+
+On Windows with an AMD Ryzen 7 9700X, debug builds, and a real 1280×1807 page,
+the best of five host-path runs produced the following totals. Decoded assets
+were prepared before timing. Model inference was replaced with identical
+deterministic output in both paths and excluded; PNG encoding is included.
+Tile calls and output pixels were compared exactly and remained identical.
+
+| Host path | Before | After |
+| --- | ---: | ---: |
+| Text cleanup preparation, tiling, composition and PNG | 962.6 ms | 458.5 ms |
+| Decensor preparation, tiling, composition and PNG | 779.5 ms | 572.2 ms |
+
+These are host-overhead measurements, not full diffusion generation times.
 
 ## Stages
 

@@ -35,13 +35,14 @@ impl PageWork {
     }
 
     fn ready(&self, index: usize) -> bool {
-        let Some(prerequisite) = prerequisite(self.stages[index].stage) else {
-            return true;
-        };
-        self.stages
+        prerequisites(self.stages[index].stage)
             .iter()
-            .find(|work| work.stage == prerequisite)
-            .is_none_or(|work| work.state == WorkState::Finished)
+            .all(|prerequisite| {
+                self.stages
+                    .iter()
+                    .find(|work| work.stage == *prerequisite)
+                    .is_none_or(|work| work.state == WorkState::Finished)
+            })
     }
 }
 
@@ -51,6 +52,7 @@ pub(crate) struct Scheduler {
     page_window: usize,
     active_pages: usize,
     head: usize,
+    translation_head: usize,
     total: usize,
 }
 
@@ -80,6 +82,7 @@ impl Scheduler {
             page_window: stages.len().max(1),
             active_pages: 0,
             head: 0,
+            translation_head: 0,
             total,
         }
     }
@@ -105,6 +108,8 @@ impl Scheduler {
                     .find_map(|(index, work)| {
                         (work.state == WorkState::Pending
                             && !busy_stages.contains(&work.stage)
+                            && (work.stage != Stage::Translation
+                                || page_index == self.translation_head)
                             && self.pages[page_index].ready(index))
                         .then_some(index)
                     });
@@ -130,6 +135,9 @@ impl Scheduler {
         let was_finished = page.finished();
         if let Some(work) = page.stages.iter_mut().find(|work| work.stage == stage) {
             work.state = WorkState::Finished;
+            if stage == Stage::Translation && page_index == self.translation_head {
+                self.translation_head += 1;
+            }
         }
         let page_finished = !was_finished && page.finished();
         if page_finished {
@@ -140,13 +148,32 @@ impl Scheduler {
         }
         page_finished
     }
+
+    /// Returns a running stage to the queue, for example after its output
+    /// was superseded by a concurrent edit.
+    pub(crate) fn retry(&mut self, page: EntityId, stage: Stage) {
+        let Some(&page_index) = self.page_index.get(&page) else {
+            return;
+        };
+        if let Some(work) = self.pages[page_index]
+            .stages
+            .iter_mut()
+            .find(|work| work.stage == stage && work.state == WorkState::Running)
+        {
+            work.state = WorkState::Pending;
+        }
+    }
 }
 
-const fn prerequisite(stage: Stage) -> Option<Stage> {
+const fn prerequisites(stage: Stage) -> &'static [Stage] {
     match stage {
-        Stage::Detection => None,
-        Stage::Ocr | Stage::Inpainting => Some(Stage::Detection),
-        Stage::Translation => Some(Stage::Ocr),
+        Stage::Detection => &[],
+        Stage::CensorDetection => &[Stage::Detection],
+        // OCR and cleanup observe the page's asset collection. Commit its
+        // censor-mask write before either reader captures that collection.
+        Stage::Ocr | Stage::Inpainting => &[Stage::Detection, Stage::CensorDetection],
+        Stage::Translation => &[Stage::Ocr],
+        Stage::Decensor => &[Stage::CensorDetection, Stage::Inpainting],
     }
 }
 
@@ -159,40 +186,92 @@ mod tests {
     }
 
     #[test]
-    fn starts_pages_in_order_and_models_independently() {
+    fn a_superseded_translation_reruns_before_later_pages_translate() {
+        let pages = pages(2);
+        let stages = [Stage::Ocr, Stage::Translation];
+        let mut scheduler = Scheduler::new(&pages, &stages);
+        let busy = BTreeSet::new();
+        assert_eq!(scheduler.start_next(&busy), Some((pages[0], Stage::Ocr)));
+        scheduler.complete_stage(pages[0], Stage::Ocr);
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[0], Stage::Translation))
+        );
+        assert_eq!(scheduler.start_next(&busy), Some((pages[1], Stage::Ocr)));
+        scheduler.complete_stage(pages[1], Stage::Ocr);
+        scheduler.retry(pages[0], Stage::Translation);
+        // The retried page keeps its place at the translation head, so prior-page
+        // memory still reaches the next page.
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[0], Stage::Translation))
+        );
+        assert!(scheduler.start_next(&busy).is_none());
+        scheduler.complete_stage(pages[0], Stage::Translation);
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[1], Stage::Translation))
+        );
+    }
+
+    #[test]
+    fn page_asset_readers_wait_for_censor_mask_but_other_pages_keep_running() {
         let pages = pages(2);
         let mut scheduler = Scheduler::new(&pages, &Stage::ALL);
         let mut busy = BTreeSet::new();
 
-        let first = scheduler.start_next(&busy).unwrap();
-        assert_eq!(first, (pages[0], Stage::Detection));
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[0], Stage::Detection))
+        );
+        scheduler.complete_stage(pages[0], Stage::Detection);
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[0], Stage::CensorDetection))
+        );
+        busy.insert(Stage::CensorDetection);
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[1], Stage::Detection))
+        );
         busy.insert(Stage::Detection);
         assert!(scheduler.start_next(&busy).is_none());
 
-        busy.clear();
-        assert!(!scheduler.complete_stage(pages[0], Stage::Detection));
-        let ocr = scheduler.start_next(&busy).unwrap();
-        busy.insert(ocr.1);
-        let inpainting = scheduler.start_next(&busy).unwrap();
-        busy.insert(inpainting.1);
-        let next_page = scheduler.start_next(&busy).unwrap();
-        busy.insert(next_page.1);
-        assert_eq!(ocr, (pages[0], Stage::Ocr));
-        assert_eq!(inpainting, (pages[0], Stage::Inpainting));
-        assert_eq!(next_page, (pages[1], Stage::Detection));
+        scheduler.complete_stage(pages[0], Stage::CensorDetection);
+        busy.remove(&Stage::CensorDetection);
+        assert_eq!(scheduler.start_next(&busy), Some((pages[0], Stage::Ocr)));
+        busy.insert(Stage::Ocr);
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[0], Stage::Inpainting))
+        );
+        busy.insert(Stage::Inpainting);
+        assert!(scheduler.start_next(&busy).is_none());
 
-        assert!(!scheduler.complete_stage(pages[0], Stage::Ocr));
+        scheduler.complete_stage(pages[0], Stage::Ocr);
         busy.remove(&Stage::Ocr);
-        let translation = scheduler.start_next(&busy).unwrap();
-        assert_eq!(translation, (pages[0], Stage::Translation));
-        assert!(busy.contains(&Stage::Detection));
-        assert!(busy.contains(&Stage::Inpainting));
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[0], Stage::Translation))
+        );
+        busy.insert(Stage::Translation);
+        scheduler.complete_stage(pages[0], Stage::Inpainting);
+        busy.remove(&Stage::Inpainting);
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[0], Stage::Decensor))
+        );
     }
 
     #[test]
     fn sliding_window_backpressures_fast_upstream_models() {
         let pages = pages(4);
-        let stages = [Stage::Detection, Stage::Ocr, Stage::Inpainting];
+        let stages = [
+            Stage::Detection,
+            Stage::Ocr,
+            Stage::CensorDetection,
+            Stage::Inpainting,
+        ];
         let mut scheduler = Scheduler::new(&pages, &stages);
         let mut busy = BTreeSet::new();
 
@@ -201,14 +280,24 @@ mod tests {
             Some((pages[0], Stage::Detection))
         );
         assert!(!scheduler.complete_stage(pages[0], Stage::Detection));
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[0], Stage::CensorDetection))
+        );
+        assert!(!scheduler.complete_stage(pages[0], Stage::CensorDetection));
         let ocr = scheduler.start_next(&busy).unwrap();
         busy.insert(ocr.1);
         let inpainting = scheduler.start_next(&busy).unwrap();
         busy.insert(inpainting.1);
 
-        for page in &pages[1..3] {
+        for page in &pages[1..4] {
             assert_eq!(scheduler.start_next(&busy), Some((*page, Stage::Detection)));
             assert!(!scheduler.complete_stage(*page, Stage::Detection));
+            assert_eq!(
+                scheduler.start_next(&busy),
+                Some((*page, Stage::CensorDetection))
+            );
+            assert!(!scheduler.complete_stage(*page, Stage::CensorDetection));
         }
         assert!(scheduler.start_next(&busy).is_none());
 
@@ -216,5 +305,25 @@ mod tests {
         assert!(scheduler.complete_stage(pages[0], Stage::Inpainting));
         busy.clear();
         assert_eq!(scheduler.start_next(&busy), Some((pages[1], Stage::Ocr)));
+    }
+
+    #[test]
+    fn a_later_ready_page_cannot_translate_before_earlier_memory_is_committed() {
+        let pages = pages(2);
+        let mut scheduler = Scheduler::new(&pages, &[Stage::Ocr, Stage::Translation]);
+        scheduler.complete_stage(pages[1], Stage::Ocr);
+        let busy = BTreeSet::from([Stage::Ocr]);
+        assert!(scheduler.start_next(&busy).is_none());
+        scheduler.complete_stage(pages[0], Stage::Ocr);
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[0], Stage::Translation))
+        );
+        assert!(scheduler.start_next(&busy).is_none());
+        scheduler.complete_stage(pages[0], Stage::Translation);
+        assert_eq!(
+            scheduler.start_next(&busy),
+            Some((pages[1], Stage::Translation))
+        );
     }
 }

@@ -1,18 +1,34 @@
+mod backends;
+mod censor_detection;
+mod cleanup;
+mod comfyui;
+mod decensor;
 mod detection;
 mod inpainting;
+mod models;
 mod ocr;
+mod tiling;
 mod translation;
+
+#[cfg(test)]
+mod test_support;
 
 use std::{collections::BTreeSet, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Context as _, Result, ensure};
 use async_trait::async_trait;
+use image::GrayImage;
 use koharu_scene::{Edit, EntityId, Generation, Patch, ProducerId, Snapshot};
 
+pub(crate) use backends::Models;
+pub use censor_detection::CensorDetectionConfig;
 pub use detection::KoharuLayoutRFDetrSeg2XLConfig;
-pub use inpainting::{Flux2KleinConfig, RoremMixedConfig};
+pub(crate) use models::DECENSOR_PROMPT;
+pub use models::{DiffusionCreamPyConfig, Flux2Klein9BConfig, Flux2KleinConfig, RoremMixedConfig};
 
-use crate::{Bounds, ImageCache, InpaintingMask, PipelineConfig, Stage};
+use crate::{
+    Bounds, CleanupTarget, ImageCache, InpaintingMask, PipelineConfig, Stage, TranslationOptions,
+};
 
 #[derive(Clone)]
 pub(crate) struct StageInput {
@@ -22,6 +38,8 @@ pub(crate) struct StageInput {
     region: Option<Bounds>,
     images: Arc<ImageCache>,
     inpainting_mask: Option<InpaintingMask>,
+    translation: Option<Arc<TranslationOptions>>,
+    stop: crate::StopToken,
 }
 
 impl StageInput {
@@ -32,6 +50,7 @@ impl StageInput {
         region: Option<Bounds>,
         images: Arc<ImageCache>,
         inpainting_mask: Option<InpaintingMask>,
+        translation: Option<Arc<TranslationOptions>>,
     ) -> Self {
         Self {
             scene,
@@ -40,7 +59,16 @@ impl StageInput {
             region,
             images,
             inpainting_mask,
+            translation,
+            stop: crate::StopToken::default(),
         }
+    }
+
+    /// Lets long-running inference observe the job's stop request.
+    #[must_use]
+    pub(crate) fn stopped_by(mut self, stop: crate::StopToken) -> Self {
+        self.stop = stop;
+        self
     }
 
     pub(crate) fn page(&self) -> EntityId {
@@ -56,12 +84,48 @@ impl StageInput {
             entity,
         )
     }
+
+    /// The stroke painted for this run with the target it was painted for,
+    /// decoded at the page's size and clipped to the requested region like every
+    /// saved mask.
+    ///
+    /// A stroke replaces whatever mask its stage would read from the page; the
+    /// two are never merged. Each stage accepts only the targets it repairs, so
+    /// a stage that receives another target's stroke must refuse it rather than
+    /// repair it with the wrong model.
+    fn painted_mask(
+        &self,
+        (width, height): (u32, u32),
+    ) -> Result<Option<(CleanupTarget, GrayImage)>> {
+        let Some(painted) = &self.inpainting_mask else {
+            return Ok(None);
+        };
+        let mut mask = image::load_from_memory(&painted.png)
+            .context("failed to decode the painted cleanup mask")?
+            .into_luma8();
+        ensure!(
+            mask.dimensions() == (width, height),
+            "inpainting mask dimensions do not match page {}",
+            self.page
+        );
+        if let Some(bounds) = self.region {
+            tiling::clip_to_region(&mut mask, bounds);
+        }
+        Ok(Some((painted.target, mask)))
+    }
 }
 
 #[async_trait]
 trait StageProcessor: Send + Sync {
     fn model(&self) -> &'static str;
-    fn skip(&self, _input: &StageInput) -> Result<bool> {
+    /// Whether processing occupies the shared accelerator. Work that only
+    /// waits on a remote service must not hold it.
+    fn uses_accelerator(&self) -> bool {
+        true
+    }
+    /// Whether the stage has nothing to do for this page. It runs before the
+    /// model is loaded, so it may read the page's assets.
+    async fn skip(&self, _input: &StageInput) -> Result<bool> {
         Ok(false)
     }
     fn unload(&self) -> bool;
@@ -69,11 +133,21 @@ trait StageProcessor: Send + Sync {
     async fn process(&self, input: StageInput) -> Result<Patch>;
 }
 
+/// Rejects the model settings that building the stages would refuse. Saving
+/// settings calls this, so a bad value is reported when it is entered instead of
+/// when the pipeline reloads and silently keeps running its previous settings.
+pub(crate) fn validate(config: &PipelineConfig) -> Result<()> {
+    inpainting::validate(&config.inpainting)?;
+    backends::validate(backends::Selection::from(&config.decensor()?))
+}
+
 pub(crate) struct Stages {
     detection: detection::Processor,
     ocr: ocr::Processor,
     translation: translation::Processor,
+    censor_detection: censor_detection::Processor,
     inpainting: inpainting::Processor,
+    decensor: decensor::Processor,
 }
 
 impl Stages {
@@ -81,12 +155,25 @@ impl Stages {
         config: &PipelineConfig,
         translator: koharu_translator::Translator,
         device: &koharu_ml::Device,
+        models: Arc<Models>,
     ) -> Result<Self> {
+        // The registry belongs to the pipeline, not to this generation, so
+        // stages of different generations that select the same model share its
+        // loaded weights.
         Ok(Self {
             detection: detection::Processor::new(config.detection()?, device.clone()),
             ocr: ocr::Processor::new(config.ocr.clone(), device.clone()),
-            translation: translation::Processor::new(config.translation.clone(), translator),
-            inpainting: inpainting::Processor::new(config.inpainting()?, device.clone())?,
+            translation: translation::Processor::new(config.translation.clone(), translator)?,
+            censor_detection: censor_detection::Processor::new(
+                config.censor_detection.clone(),
+                device.clone(),
+            )?,
+            inpainting: inpainting::Processor::new(
+                config.inpainting.clone(),
+                device.clone(),
+                models.clone(),
+            )?,
+            decensor: decensor::Processor::new(config.decensor()?, device.clone(), models)?,
         })
     }
 
@@ -95,7 +182,9 @@ impl Stages {
             Stage::Detection => &self.detection,
             Stage::Ocr => &self.ocr,
             Stage::Translation => &self.translation,
+            Stage::CensorDetection => &self.censor_detection,
             Stage::Inpainting => &self.inpainting,
+            Stage::Decensor => &self.decensor,
         }
     }
 
@@ -103,8 +192,12 @@ impl Stages {
         self.processor(stage).model()
     }
 
-    pub(crate) fn skip(&self, stage: Stage, input: &StageInput) -> Result<bool> {
-        self.processor(stage).skip(input)
+    pub(crate) fn uses_accelerator(&self, stage: Stage) -> bool {
+        self.processor(stage).uses_accelerator()
+    }
+
+    pub(crate) async fn skip(&self, stage: Stage, input: &StageInput) -> Result<bool> {
+        self.processor(stage).skip(input).await
     }
 
     pub(crate) async fn load(&self, stage: Stage) -> Result<()> {
@@ -132,8 +225,6 @@ fn finish(edit: Edit) -> Result<Patch> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     fn asset(bytes: &'static [u8]) -> koharu_scene::AssetInput {
         koharu_scene::AssetInput::new(
             bytes,
@@ -144,31 +235,6 @@ mod tests {
                 attributes: std::collections::BTreeMap::new(),
             },
         )
-    }
-
-    #[tokio::test]
-    async fn registry_contains_every_stage() {
-        let translator = koharu_translator::Translator::from_config(
-            koharu_ml::Device::cpu(),
-            koharu_config::Config::memory(koharu_translator::ProvidersConfig::default()),
-        )
-        .unwrap();
-        let stages = Stages::new(
-            &PipelineConfig::default(),
-            translator,
-            &koharu_ml::Device::cpu(),
-        )
-        .unwrap();
-
-        assert_eq!(
-            Stage::ALL.map(|stage| stages.model(stage)),
-            [
-                "koharu-layout-rfdetr-seg-2xl",
-                "paddleocr-vl-1.6",
-                "local",
-                "lama",
-            ]
-        );
     }
 
     #[tokio::test]

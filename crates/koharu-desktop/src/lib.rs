@@ -241,9 +241,11 @@ impl Desktop {
             .frame
             .as_ref()
             .context("there is no prepared canvas frame")?;
-        if rendered.revision() != expected_revision {
+        // Frames only move forward; a newer frame still renders the layers the
+        // gesture targets, so the transform applies to their latest placement.
+        if rendered.revision() < expected_revision {
             bail!(
-                "canvas transform expected revision {expected_revision}, but the prepared frame is at {}",
+                "canvas transform refers to revision {expected_revision}, but the prepared frame is at {}",
                 rendered.revision()
             );
         }

@@ -14,15 +14,15 @@ use koharu_diffusion::{Context, ContextParams, ImageGenerationParams, RgbImage, 
 
 use crate::Backend;
 
-#[derive(Debug)]
-pub(super) struct ModelPaths {
+#[derive(Clone, Debug)]
+pub struct ModelPaths {
     pub transformer: PathBuf,
     pub text_encoder: PathBuf,
     pub vae: PathBuf,
 }
 
 #[derive(Debug)]
-pub(super) struct Model {
+pub struct Model {
     context: Mutex<Context>,
 }
 
@@ -50,10 +50,17 @@ impl Model {
     }
 }
 
+/// Upper bound for budgeted parameter streaming, in GiB.
+///
+/// stable-diffusion.cpp clamps the streaming budget at every compute to the
+/// VRAM free at that moment minus a 512 MiB margin, so this bound only enables
+/// the planner; the live free memory decides residency.
+/// https://github.com/leejet/stable-diffusion.cpp/blob/97d2990807fe6d558e395f8764198d7c7e7b411c/src/core/ggml_extend.hpp#L2452-L2487
+const STREAMING_BUDGET_GIB: &str = "1024";
+
 fn context_params(device: &crate::Device, paths: ModelPaths) -> ContextParams {
     let use_accelerator = device.backend != Backend::Cpu;
     let use_cuda = device.backend == Backend::Cuda;
-    let keep_parameters_resident = use_accelerator && device.memory_free >= 20 * 1024 * 1024 * 1024;
     ContextParams {
         diffusion_model_path: Some(paths.transformer),
         llm_path: Some(paths.text_encoder),
@@ -64,15 +71,15 @@ fn context_params(device: &crate::Device, paths: ModelPaths) -> ContextParams {
         diffusion_conv_direct: use_cuda,
         vae_conv_direct: use_cuda,
         vae_format: VaeFormat::Flux2,
-        backend: Some(if use_accelerator {
-            device.name.to_ascii_lowercase()
-        } else {
-            "cpu".to_owned()
-        }),
-        // The text encoder and denoiser run in separate phases. Cards with less
-        // headroom keep source parameters in RAM; high-VRAM cards avoid repeated
-        // staging by retaining both quantized models on the accelerator.
-        params_backend: (use_accelerator && !keep_parameters_resident).then(|| "*=cpu".to_owned()),
+        backend: Some(device.name.clone()),
+        // Parameters stay in RAM and stream to the accelerator within the VRAM
+        // that is free when each graph runs. Staging a whole denoiser instead
+        // oversubscribes the card once other resident models hold VRAM, and the
+        // driver then pages allocations through system memory: the same tile
+        // ran 90 times slower on a 16 GB card.
+        params_backend: use_accelerator.then(|| "*=cpu".to_owned()),
+        max_vram: use_accelerator.then(|| STREAMING_BUDGET_GIB.to_owned()),
+        stream_layers: use_accelerator,
         ..ContextParams::default()
     }
 }

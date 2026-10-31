@@ -30,6 +30,12 @@ impl PipelineError {
             source: source.into(),
         }
     }
+
+    pub(crate) fn is_policy_rejected(&self) -> bool {
+        self.source
+            .chain()
+            .any(koharu_translator::is_policy_rejection)
+    }
 }
 
 impl fmt::Display for PipelineError {

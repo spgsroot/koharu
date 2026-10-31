@@ -9,8 +9,8 @@ use futures::{StreamExt as _, stream::FuturesUnordered};
 use koharu_scene::{EntityId, Snapshot};
 
 use crate::{
-    Committer, ErrorKind, PipelineError, Progress, ProgressSink, Report, Request, RunStatus, Stage,
-    StageOutput, StopToken,
+    Committed, Committer, ErrorKind, PipelineError, Progress, ProgressSink, Report, Request,
+    RunStatus, Stage, StageOutput, StopToken, TranslationOptions,
     images::ImageCache,
     progress,
     resources::ResourceMonitor,
@@ -19,6 +19,17 @@ use crate::{
     stage_runner::{StageCompletion, StageJob, StageOutcome, StageRunner},
     stages::StageInput,
 };
+
+/// The stages that repair a hand-painted stroke in place of their saved masks.
+/// A stroke is repaired by exactly one of them.
+const PAINTED_CLEANUP: [Stage; 2] = [Stage::Inpainting, Stage::Decensor];
+
+/// Whether `stage` is handed the stroke painted on its page: the cleanup stages
+/// repair it, and censor detection stands aside so a stroke never replaces the
+/// saved censor mask.
+fn receives_painted_mask(stage: Stage) -> bool {
+    stage == Stage::CensorDetection || PAINTED_CLEANUP.contains(&stage)
+}
 
 pub(crate) struct Execution<'a> {
     runner: Arc<StageRunner>,
@@ -36,6 +47,7 @@ pub(crate) struct Execution<'a> {
     base: koharu_scene::Revision,
     started: Instant,
     inpainting_mask: Option<crate::InpaintingMask>,
+    translation: Option<Arc<TranslationOptions>>,
 }
 
 impl<'a> Execution<'a> {
@@ -55,13 +67,21 @@ impl<'a> Execution<'a> {
         let scope = NormalizedScope::new(&snapshot, &request.scope, &stages)
             .map_err(|error| PipelineError::new(ErrorKind::InvalidInput, None, error))?;
         let pages = scope.pages().to_vec();
+        let consumers = stages
+            .iter()
+            .filter(|stage| PAINTED_CLEANUP.contains(stage))
+            .count();
         if let Some(mask) = request.inpainting_mask.as_ref()
-            && (!pages.contains(&mask.page) || !stages.contains(&Stage::Inpainting))
+            && (!pages.contains(&mask.page)
+                || consumers != 1
+                || !stages.contains(&mask.target.stage()))
         {
             return Err(PipelineError::new(
                 ErrorKind::InvalidInput,
-                Some(Stage::Inpainting),
-                anyhow::anyhow!("the inpainting mask page is outside the inpainting scope"),
+                None,
+                anyhow::anyhow!(
+                    "a painted cleanup mask needs its page in scope and exactly one cleanup stage"
+                ),
             ));
         }
         progress::emit(
@@ -88,6 +108,7 @@ impl<'a> Execution<'a> {
             base,
             started,
             inpainting_mask: request.inpainting_mask,
+            translation: request.translation,
         })
     }
 
@@ -142,11 +163,16 @@ impl<'a> Execution<'a> {
                 images,
                 self.inpainting_mask
                     .as_ref()
-                    .filter(|mask| stage == Stage::Inpainting && mask.page == page)
+                    .filter(|mask| mask.page == page && receives_painted_mask(stage))
                     .cloned(),
-            ),
+                self.translation.clone(),
+            )
+            .stopped_by(self.stop.clone()),
             self.stop.clone(),
             self.progress.clone(),
+            // A hand-painted repair is interactive; it must not wait behind
+            // every queued stage of a concurrent pipeline run.
+            self.inpainting_mask.is_some(),
         ))
     }
 
@@ -161,13 +187,21 @@ impl<'a> Execution<'a> {
             elapsed,
             outcome,
         } = completion;
-        match outcome? {
-            StageOutcome::Stopped => {}
-            StageOutcome::Skipped => {
+        match outcome {
+            Err(error) if stage == Stage::Translation && error.is_policy_rejected() => {
+                self.mark_complete(page, stage);
+                progress::emit(
+                    self.progress.as_ref(),
+                    Progress::PolicyRejected { page, stage, model },
+                );
+            }
+            Err(error) => return Err(error),
+            Ok(StageOutcome::Stopped) => {}
+            Ok(StageOutcome::Skipped) => {
                 self.mark_complete(page, stage);
                 progress::emit(self.progress.as_ref(), Progress::Skipped { page, stage });
             }
-            StageOutcome::Patch(patch) => {
+            Ok(StageOutcome::Patch(patch)) => {
                 if !self.commit_patch(page, stage, patch).await? {
                     return Ok(());
                 }
@@ -192,28 +226,81 @@ impl<'a> Execution<'a> {
         stage: Stage,
         patch: koharu_scene::Patch,
     ) -> std::result::Result<bool, PipelineError> {
+        let base = patch.base_revision();
+        let patch = match patch.rebase_on(&self.scene) {
+            Ok(patch) => patch,
+            // Another job committed over what this output observed after the
+            // stage captured its input; recompute it on the latest scene.
+            Err(
+                koharu_scene::Error::PatchConflict(_)
+                | koharu_scene::Error::EntityNotFound(_)
+                | koharu_scene::Error::RelationNotFound(_),
+            ) => {
+                let latest = self.scene.clone();
+                return self.supersede(page, stage, base, latest);
+            }
+            Err(error) => {
+                return Err(PipelineError::new(
+                    ErrorKind::InvalidOutput,
+                    Some(stage),
+                    anyhow::Error::from(error)
+                        .context("failed to rebase stage output onto the latest scene"),
+                ));
+            }
+        };
         let patch = patch
-            .rebase_on(&self.scene)
-            .and_then(|patch| {
-                patch.validate_on(&self.scene)?;
-                Ok(patch.with_label(format!("Pipeline {stage} for page {page}")))
-            })
-            .context("failed to rebase stage output onto the latest scene")
+            .validate_on(&self.scene)
+            .map(|()| patch.with_label(format!("Pipeline {stage} for page {page}")))
+            .context("failed to validate stage output on the latest scene")
             .map_err(|error| PipelineError::new(ErrorKind::InvalidOutput, Some(stage), error))?;
         if self.stopped() {
             return Ok(false);
         }
 
-        let next = self
+        let committed = self
             .committer
             .commit(StageOutput { page, stage, patch })
             .await
             .with_context(|| format!("failed to commit {stage} output for page {page}"))
             .map_err(|error| PipelineError::new(ErrorKind::Commit, Some(stage), error))?;
-        validate_commit(&self.scene, &next)
+        let (next, applied) = match committed {
+            Committed::Applied(next) => (next, true),
+            Committed::Unchanged(next) => (next, false),
+            Committed::Superseded(next) => return self.supersede(page, stage, base, next),
+        };
+        validate_commit(&self.scene, &next, applied)
             .map_err(|error| PipelineError::new(ErrorKind::Commit, Some(stage), error))?;
         self.scene = next;
         Ok(true)
+    }
+
+    /// Re-runs a stage whose output conflicts with edits committed after it
+    /// captured its input. Each re-run is paid for by another job's commit, so
+    /// hand-painted repairs on the page being processed delay the stage
+    /// instead of failing the run; a conflict without such progress is a
+    /// genuine error.
+    fn supersede(
+        &mut self,
+        page: EntityId,
+        stage: Stage,
+        base: koharu_scene::Revision,
+        latest: Snapshot,
+    ) -> std::result::Result<bool, PipelineError> {
+        validate_commit(&self.scene, &latest, false)
+            .map_err(|error| PipelineError::new(ErrorKind::Commit, Some(stage), error))?;
+        if latest.revision() <= base {
+            return Err(PipelineError::new(
+                ErrorKind::Commit,
+                Some(stage),
+                anyhow::anyhow!(
+                    "{stage} output for page {page} conflicts with the scene it was computed on"
+                ),
+            ));
+        }
+        self.scene = latest;
+        tracing::info!(%stage, %page, "re-running stage superseded by a concurrent edit");
+        self.scheduler.retry(page, stage);
+        Ok(false)
     }
 
     fn mark_complete(&mut self, page: EntityId, stage: Stage) {
@@ -262,14 +349,21 @@ impl<'a> Execution<'a> {
     }
 }
 
-fn validate_commit(previous: &Snapshot, next: &Snapshot) -> Result<()> {
+fn validate_commit(previous: &Snapshot, next: &Snapshot, applied: bool) -> Result<()> {
     ensure!(
         previous.project_id() == next.project_id(),
         "committer returned a snapshot from another project"
     );
-    ensure!(
-        next.revision() > previous.revision(),
-        "committer did not advance the scene revision"
-    );
+    if applied {
+        ensure!(
+            next.revision() > previous.revision(),
+            "committer did not advance the scene revision"
+        );
+    } else {
+        ensure!(
+            next.revision() >= previous.revision(),
+            "committer returned an older scene"
+        );
+    }
     Ok(())
 }

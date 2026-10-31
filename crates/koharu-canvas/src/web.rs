@@ -698,7 +698,7 @@ impl CanvasState {
                 self.transform = None;
             }
             if self.stroke.as_ref().is_some_and(|edit| {
-                !edit.pending || (edit.page == frame.page() && edit.revision < frame.revision())
+                edit.pending && edit.page == frame.page() && edit.revision < frame.revision()
             }) {
                 self.stroke = None;
             }
@@ -1645,6 +1645,7 @@ impl WebCanvas {
             return Err(js_message("stroke is already waiting for replacement"));
         }
         stroke.pending = true;
+        let transient = stroke.kind == StrokeKind::Inpaint;
         let page = format_layer_id(stroke.page);
         let revision = stroke.revision.get();
         let output = match stroke.kind {
@@ -1654,23 +1655,33 @@ impl WebCanvas {
                 layer: stroke.layer.map(format_layer_id),
                 diameter: stroke.diameter,
                 color: stroke.color,
-                points: stroke.points.clone(),
+                points: std::mem::take(&mut stroke.points),
             },
             StrokeKind::Erase => StrokeCommitDto::Erase {
                 page,
                 revision,
                 layer: format_layer_id(stroke.layer.expect("erase target validated")),
                 diameter: stroke.diameter,
-                points: stroke.points.clone(),
+                points: std::mem::take(&mut stroke.points),
             },
             StrokeKind::Inpaint => StrokeCommitDto::Inpaint {
                 page,
                 revision,
                 diameter: stroke.diameter,
-                points: stroke.points.clone(),
+                points: std::mem::take(&mut stroke.points),
             },
         };
-        serde_wasm_bindgen::to_value(&output).map_err(js_error)
+        let output = serde_wasm_bindgen::to_value(&output).map_err(js_error)?;
+        if transient {
+            // Queued masks are owned by their jobs, not by the active gesture.
+            browser.canvas.stroke = None;
+            browser.canvas.dirty = true;
+        }
+        drop(browser);
+        if transient {
+            self.request_render()?;
+        }
+        Ok(output)
     }
 
     #[wasm_bindgen(js_name = cancelStroke)]

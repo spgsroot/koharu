@@ -18,17 +18,25 @@ mod stage_runner;
 mod stages;
 
 pub use config::{
-    DetectionModel, InpaintingModel, OcrModel, PipelineConfig, ProcessorConfig, TranslationConfig,
+    ArtworkInpaintingConfig, BubbleInpaintingKind, DecensorConfig, DecensorKind, DecensorModel,
+    DetectionModel, InpaintingConfig, InpaintingKind, InpaintingModel, ManualInpaintingPreset,
+    OcrModel, PipelineConfig, ProcessorConfig, SystemPrompts, TranslationConfig,
+    builtin_manual_inpainting_presets,
 };
 pub use error::{ErrorKind, PipelineError};
-pub use pipeline::Pipeline;
+pub use pipeline::{Pipeline, PipelineSnapshot};
 pub use progress::{Progress, ProgressSink};
-pub use report::{Committer, Report, RunStatus, StageOutput};
-pub use request::{InpaintingMask, Operation, Request, StopToken};
+pub use report::{Committed, Committer, Report, RunStatus, StageOutput};
+pub use request::{
+    CleanupTarget, InpaintingMask, Operation, Request, StopToken, TranslationOptions,
+};
 pub use resources::{DeviceResources, ResourceSnapshot};
 pub use scope::{Bounds, Scope};
 pub use stage::Stage;
-pub use stages::{Flux2KleinConfig, KoharuLayoutRFDetrSeg2XLConfig, RoremMixedConfig};
+pub use stages::{
+    CensorDetectionConfig, DiffusionCreamPyConfig, Flux2Klein9BConfig, Flux2KleinConfig,
+    KoharuLayoutRFDetrSeg2XLConfig, RoremMixedConfig,
+};
 
 use images::ImageCache;
 use model_cell::ModelCell;

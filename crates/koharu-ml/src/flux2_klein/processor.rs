@@ -2,17 +2,20 @@
 //!
 //! https://github.com/huggingface/diffusers/blob/a37f6f8394ac2a7ee8360c3abea811efe54512b1/src/diffusers/pipelines/flux2/image_processor.py
 
+use std::path::PathBuf;
+
 use anyhow::{Result, ensure};
 use fast_image_resize::{FilterType, ResizeAlg, ResizeOptions, Resizer};
 use image::{DynamicImage, GrayImage, Luma, RgbImage};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Flux2KleinOptions {
     pub height: Option<u32>,
     pub width: Option<u32>,
     pub num_inference_steps: i32,
     pub seed: i64,
     pub num_images_per_prompt: i32,
+    pub guidance_scale: f32,
 }
 
 impl Default for Flux2KleinOptions {
@@ -22,6 +25,7 @@ impl Default for Flux2KleinOptions {
             width: None,
             num_inference_steps: 4,
             seed: -1,
+            guidance_scale: 1.0,
             num_images_per_prompt: 1,
         }
     }
@@ -30,9 +34,14 @@ impl Default for Flux2KleinOptions {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Flux2KleinInpaintOptions {
     pub padding_mask_crop: Option<u32>,
+    /// Full strength edits through the reference image; lower values also use native IMG2IMG.
     pub strength: f64,
     pub num_inference_steps: usize,
     pub seed: i64,
+    pub guidance_scale: f32,
+    /// Applied only to this request; absent or zero strength clears any prior adapter.
+    pub lora_path: Option<PathBuf>,
+    pub lora_strength: f32,
 }
 
 impl Default for Flux2KleinInpaintOptions {
@@ -42,6 +51,9 @@ impl Default for Flux2KleinInpaintOptions {
             strength: 0.8,
             num_inference_steps: 4,
             seed: -1,
+            guidance_scale: 1.0,
+            lora_path: None,
+            lora_strength: 1.0,
         }
     }
 }

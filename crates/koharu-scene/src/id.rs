@@ -39,6 +39,14 @@ macro_rules! entity_id {
                 self.0.fmt(formatter)
             }
         }
+
+        impl FromStr for $name {
+            type Err = uuid::Error;
+
+            fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+                Uuid::parse_str(value).map(Self)
+            }
+        }
     };
 }
 

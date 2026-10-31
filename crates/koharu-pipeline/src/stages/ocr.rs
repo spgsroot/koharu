@@ -11,7 +11,7 @@ use koharu_ml::{
 };
 use koharu_scene::{
     Authored, EntityId, Geometry, LanguageTag, OcrAnalysis, Origin, RecognizedFrom, Region,
-    RegionSpec, SourceText, TextDirection, TextRegion,
+    RegionSpec, SourceText, TextDirection, TextRegion, Translation,
 };
 
 const PRODUCER: &str = "dev.koharu.pipeline.ocr";
@@ -176,6 +176,20 @@ impl Model {
             edit.observe::<SourceText>(result.content)?;
         }
         for result in results {
+            let changed = result
+                .previous
+                .as_ref()
+                .is_none_or(|source| source.text.value != result.text);
+            if changed
+                && input
+                    .scene
+                    .component::<Translation>(result.content)?
+                    .is_some_and(|translation| {
+                        matches!(translation.text.origin, Origin::Generated(_))
+                    })
+            {
+                edit.remove::<Translation>(result.content)?;
+            }
             let language = result
                 .previous
                 .and_then(|value| value.language)

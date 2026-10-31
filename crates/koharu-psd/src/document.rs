@@ -21,7 +21,6 @@ use crate::{
 
 const SOURCE_ROLE: &str = "source";
 const TEXT_MASK_ROLE: &str = "text-mask";
-const COO_MASK_ROLE: &str = "coo-mask";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextLayerMode {
@@ -121,10 +120,7 @@ pub(crate) async fn build(
         )?;
     }
     if options.include_removal_mask {
-        let mask = combine_masks(
-            read_image(snapshot, frame.page(), TEXT_MASK_ROLE).await?,
-            read_image(snapshot, frame.page(), COO_MASK_ROLE).await?,
-        )?;
+        let mask = read_image(snapshot, frame.page(), TEXT_MASK_ROLE).await?;
         if let Some(mask) = mask {
             push_raster_layer(
                 &mut layers,
@@ -254,33 +250,6 @@ async fn read_image(
             .await
             .map_err(|error| PsdExportError::Task(error.to_string()))??,
     ))
-}
-
-fn combine_masks(
-    left: Option<DynamicImage>,
-    right: Option<DynamicImage>,
-) -> Result<Option<DynamicImage>, PsdExportError> {
-    let result = match (left, right) {
-        (None, None) => None,
-        (Some(mask), None) | (None, Some(mask)) => Some(mask),
-        (Some(left), Some(right)) => {
-            let mut left = left.into_luma8();
-            let right = right.into_luma8();
-            if left.dimensions() != right.dimensions() {
-                return Err(PsdExportError::MismatchedMaskDimensions {
-                    left_width: left.width(),
-                    left_height: left.height(),
-                    right_width: right.width(),
-                    right_height: right.height(),
-                });
-            }
-            for (target, source) in left.pixels_mut().zip(right.pixels()) {
-                target.0[0] = target.0[0].max(source.0[0]);
-            }
-            Some(DynamicImage::ImageLuma8(left))
-        }
-    };
-    Ok(result)
 }
 
 fn grayscale_mask_rgba(image: &DynamicImage) -> RgbaImage {
@@ -429,18 +398,5 @@ mod tests {
         assert_eq!(metadata.font_size, 24.0);
         assert!((metadata.transform[0]).abs() < 1e-12);
         assert!((metadata.transform[1] - 1.0).abs() < 1e-12);
-    }
-
-    #[test]
-    fn combine_masks_rejects_different_scene_asset_sizes() {
-        let error = combine_masks(
-            Some(DynamicImage::ImageLuma8(GrayImage::new(2, 2))),
-            Some(DynamicImage::ImageLuma8(GrayImage::new(3, 2))),
-        )
-        .expect_err("mismatched masks must fail");
-        assert!(matches!(
-            error,
-            PsdExportError::MismatchedMaskDimensions { .. }
-        ));
     }
 }

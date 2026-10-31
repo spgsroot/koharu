@@ -1,4 +1,4 @@
-//! FLUX.2 Klein 4B generation and inpainting.
+//! FLUX.2 Klein generation, inpainting, and 9B image editing.
 //!
 //! https://github.com/huggingface/diffusers/blob/a37f6f8394ac2a7ee8360c3abea811efe54512b1/src/diffusers/pipelines/flux2/pipeline_flux2_klein.py
 //! https://github.com/huggingface/diffusers/blob/a37f6f8394ac2a7ee8360c3abea811efe54512b1/src/diffusers/pipelines/flux2/pipeline_flux2_klein_inpaint.py
@@ -10,7 +10,7 @@ use anyhow::{Context, Result, ensure};
 use fast_image_resize::{FilterType, ResizeAlg, ResizeOptions, Resizer};
 use image::{DynamicImage, RgbImage};
 use koharu_diffusion::{
-    GuidanceParams, ImageGenerationParams, SampleMethod, SampleParams, Scheduler,
+    GuidanceParams, ImageGenerationParams, Lora, SampleMethod, SampleParams, Scheduler,
 };
 
 use self::{
@@ -18,7 +18,10 @@ use self::{
     processor::Flux2ImageProcessor,
 };
 
-pub use self::processor::{Flux2KleinInpaintOptions, Flux2KleinOptions};
+pub use self::{
+    model::ModelPaths as Flux2KleinModelPaths,
+    processor::{Flux2KleinInpaintOptions, Flux2KleinOptions},
+};
 
 crate::model_repository!("unsloth/FLUX.2-klein-4B-GGUF" @ "0084d1df98e2e2137fe776d55170bc4792ec1d66" {
     TRANSFORMER_WEIGHTS = "flux-2-klein-4b-Q4_K_M.gguf"
@@ -29,6 +32,52 @@ crate::model_repository!("black-forest-labs/FLUX.2-small-decoder" @ "a3efc24f613
 crate::model_repository!("unsloth/Qwen3-4B-GGUF" @ "22c9fc8a8c7700b76a1789366280a6a5a1ad1120" {
     TEXT_ENCODER_WEIGHTS = "Qwen3-4B-Q4_K_M.gguf"
 });
+crate::model_repository!("unsloth/FLUX.2-klein-9B-GGUF" @ "fde8634245fe6b749a221c25b34672b5b8fbd079" {
+    DISTILLED_9B_TRANSFORMER_WEIGHTS = "flux-2-klein-9b-Q8_0.gguf"
+});
+crate::model_repository!("ponpoke/flux2-klein-9b-uncensored-text-encoder" @ "fba36e796aac081246708dd30392a401ba44922e" {
+    UNCENSORED_9B_TEXT_ENCODER_WEIGHTS = "flux2-klein-9b-uncensored-q4_k_m.gguf"
+});
+
+#[derive(Debug)]
+pub struct Flux2Klein9B {
+    model: Flux2KleinInpaint,
+}
+
+impl Flux2Klein9B {
+    pub async fn load(device: crate::Device) -> Result<Self> {
+        let (transformer, text_encoder, vae) = tokio::try_join!(
+            DISTILLED_9B_TRANSFORMER_WEIGHTS.resolve(),
+            UNCENSORED_9B_TEXT_ENCODER_WEIGHTS.resolve(),
+            VAE_WEIGHTS.resolve(),
+        )
+        .context("failed to resolve FLUX.2 Klein 9B assets")?;
+        Self::load_from_paths(
+            device,
+            Flux2KleinModelPaths {
+                transformer,
+                text_encoder,
+                vae,
+            },
+        )
+    }
+
+    pub fn load_from_paths(device: crate::Device, paths: Flux2KleinModelPaths) -> Result<Self> {
+        Ok(Self {
+            model: Flux2KleinInpaint::load_from_paths(device, paths)?,
+        })
+    }
+
+    pub fn inference(
+        &self,
+        prompt: &str,
+        image: &DynamicImage,
+        mask: &DynamicImage,
+        options: &Flux2KleinInpaintOptions,
+    ) -> Result<DynamicImage> {
+        self.model.inference(prompt, image, None, mask, options)
+    }
+}
 
 #[derive(Debug)]
 pub struct Flux2Klein {
@@ -107,7 +156,7 @@ impl Flux2Klein {
             reference_image_args: Some("resize_before_vae=0".into()),
             sample: SampleParams {
                 guidance: GuidanceParams {
-                    text_cfg: 1.0,
+                    text_cfg: options.guidance_scale,
                     ..GuidanceParams::default()
                 },
                 scheduler: Scheduler::Flux2,
@@ -135,15 +184,20 @@ impl Flux2KleinInpaint {
             VAE_WEIGHTS.resolve(),
         )
         .context("failed to resolve FLUX.2 Klein model assets")?;
-        let model = Model::new(
-            &device,
+        Self::load_from_paths(
+            device,
             ModelPaths {
                 transformer,
                 text_encoder,
                 vae,
             },
-        )?;
-        Ok(Self { model })
+        )
+    }
+
+    pub fn load_from_paths(device: crate::Device, paths: ModelPaths) -> Result<Self> {
+        Ok(Self {
+            model: Model::new(&device, paths)?,
+        })
     }
 
     pub fn inference(
@@ -174,6 +228,25 @@ impl Flux2KleinInpaint {
             options.num_inference_steps > 0,
             "num_inference_steps must be greater than zero"
         );
+        ensure!(
+            options.guidance_scale.is_finite() && options.guidance_scale > 0.0,
+            "guidance_scale must be finite and greater than zero"
+        );
+        ensure!(
+            options.lora_strength.is_finite() && options.lora_strength >= 0.0,
+            "FLUX.2 LoRA strength must be finite and non-negative"
+        );
+        if let Some(path) = options
+            .lora_path
+            .as_ref()
+            .filter(|_| options.lora_strength > 0.0)
+        {
+            ensure!(
+                path.is_file(),
+                "FLUX.2 LoRA file does not exist: {}",
+                path.display()
+            );
+        }
 
         let mut image = image.clone();
         if u64::from(image.width()) * u64::from(image.height()) > 1024 * 1024 {
@@ -208,23 +281,34 @@ impl Flux2KleinInpaint {
         let crop_coords = options.padding_mask_crop.and_then(|padding| {
             Flux2ImageProcessor::get_crop_region(&mask_image, width, height, padding)
         });
-        let (init_image, mut native_mask) = if let Some((x1, y1, x2, y2)) = crop_coords {
+        let img2img = options.strength < 1.0;
+        let (init_image, native_mask) = if let Some((x1, y1, x2, y2)) = crop_coords {
             let image_crop = DynamicImage::ImageRgb8(
                 image::imageops::crop_imm(&image, x1, y1, x2 - x1, y2 - y1).to_image(),
             );
-            let mask_crop = DynamicImage::ImageLuma8(
-                image::imageops::crop_imm(&mask_image, x1, y1, x2 - x1, y2 - y1).to_image(),
-            );
+            let native_mask = img2img.then(|| {
+                let mask_crop = DynamicImage::ImageLuma8(
+                    image::imageops::crop_imm(&mask_image, x1, y1, x2 - x1, y2 - y1).to_image(),
+                );
+                Flux2ImageProcessor::_resize_and_fill(&mask_crop, width, height).to_luma8()
+            });
             (
                 Flux2ImageProcessor::_resize_and_fill(&image_crop, width, height).to_rgb8(),
-                Flux2ImageProcessor::_resize_and_fill(&mask_crop, width, height).to_luma8(),
+                native_mask,
             )
         } else {
-            (image.clone(), mask_image.clone())
+            (image.clone(), img2img.then(|| mask_image.clone()))
         };
-        Flux2ImageProcessor::binarize(&mut native_mask);
-
-        let mut reference_images = vec![init_image.clone()];
+        // FLUX.2 Klein edits are conditioned through reference_images. With
+        // full strength the init image only triggers a second VAE encode in
+        // stable-diffusion.cpp's IMG2IMG path; the overlay below owns the mask.
+        // Partial strength still needs the native init latent and denoise mask.
+        let native_mask = native_mask.map(|mut mask| {
+            Flux2ImageProcessor::binarize(&mut mask);
+            mask
+        });
+        let native_init = img2img.then(|| init_image.clone());
+        let mut reference_images = vec![init_image];
         if let Some(image_reference) = image_reference {
             let mut image_reference = image_reference.clone();
             if u64::from(image_reference.width()) * u64::from(image_reference.height())
@@ -246,7 +330,7 @@ impl Flux2KleinInpaint {
             );
         }
 
-        let strength = if options.strength >= 1.0 {
+        let strength = if !img2img {
             1.0
         } else {
             let effective_steps = options.num_inference_steps
@@ -258,16 +342,28 @@ impl Flux2KleinInpaint {
         let generated = self
             .model
             .forward(&ImageGenerationParams {
+                loras: options
+                    .lora_path
+                    .as_ref()
+                    .filter(|_| options.lora_strength > 0.0)
+                    .map(|path| {
+                        vec![Lora {
+                            path: path.clone(),
+                            multiplier: options.lora_strength,
+                            high_noise: false,
+                        }]
+                    })
+                    .unwrap_or_default(),
                 prompt: prompt.to_owned(),
                 width: i32::try_from(width)?,
                 height: i32::try_from(height)?,
-                init_image: Some(init_image),
+                init_image: native_init,
                 reference_images,
                 reference_image_args: Some("resize_before_vae=0".into()),
-                mask_image: Some(native_mask),
+                mask_image: native_mask,
                 sample: SampleParams {
                     guidance: GuidanceParams {
-                        text_cfg: 1.0,
+                        text_cfg: options.guidance_scale,
                         ..GuidanceParams::default()
                     },
                     scheduler: Scheduler::Flux2,
